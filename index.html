@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meu Treino 2.0 — Modo Foco</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="./icons/icon-192.png">
+<style>
+body{font-family:Arial,sans-serif;background:#0f172a;color:#fff;margin:0;padding:16px}
+h1{margin-top:0}.card{background:#1e293b;border:1px solid #334155;border-radius:14px;margin:10px 0;overflow:hidden}
+.editbar{display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap}.additem{background:#1d4ed8;font-size:13px;font-weight:700}.removeitem{background:#7f1d1d;font-size:12px;padding:8px 10px;flex:0 0 auto}.itemtitle{display:flex;align-items:center;gap:6px}.itemtitle .head{flex:1;min-width:0}.editgroup{background:#334155;font-size:12px;padding:8px 10px;flex:0 0 auto}.exercise-actions{display:flex;justify-content:flex-end;margin-top:4px}.muted-hint{color:#94a3b8;font-size:12px;margin:4px 0 8px}.save-day{width:100%;margin:12px 0 4px;background:#16a34a;font-size:16px;font-weight:700;padding:13px}.save-hint{font-size:12px;color:#94a3b8;line-height:1.5}.save-message{font-size:13px;color:#86efac;min-height:16px;margin-top:6px}.head{width:100%;background:none;color:white;border:0;padding:16px;text-align:left;font-size:18px;font-weight:700;display:flex;justify-content:space-between}
+.body{padding:12px;border-top:1px solid #334155}.group{background:#172033;margin:8px 0;border-radius:12px;overflow:hidden}
+.exercise{background:#111827;border:1px solid #334155;border-radius:12px;padding:12px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.series{display:grid;grid-template-columns:54px minmax(0,1fr) minmax(0,1fr);gap:8px;margin:7px 0;align-items:center}.series .concluir{width:54px;height:42px;padding:0;font-weight:800;font-size:15px;border:1px solid #475569}.series .concluir.done{border-color:#4ade80}.series input{min-width:0;height:42px}
+input,textarea{width:100%;box-sizing:border-box;background:#0b1220;border:1px solid #475569;color:#fff;border-radius:8px;padding:9px}
+button,.file{background:#2563eb;color:white;border:0;border-radius:9px;padding:9px 12px;cursor:pointer}
+.alt{background:#334155}.done{background:#16a34a}.danger{background:#991b1b}
+.timerbox{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin-top:10px;padding:9px;background:#0b1220;border-radius:10px}.timerbox .clock{font-size:clamp(22px,6vw,30px)}.timerbox .start{min-width:0;flex:1;padding:10px 7px;white-space:nowrap}.timerbox .reset{padding:10px 10px;white-space:nowrap}.timerbox .timearea{flex:0 0 auto;min-width:0}
+.clock{font-size:28px;font-weight:800;min-width:90px}.small{color:#94a3b8;font-size:12px}
+video{width:100%;max-height:360px;margin-top:8px;border-radius:10px;background:#000}
+.fotoarea{margin-top:12px;background:#0b1220;border:1px dashed #475569;border-radius:12px;padding:12px}
+.fototitulo{font-size:14px;font-weight:700;margin-bottom:8px}
+.fotopreview{display:none;width:100%;max-height:340px;object-fit:contain;background:#020617;border-radius:10px;margin:8px 0;cursor:zoom-in}
+.fotobotoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fotobotoes label,.fotobotoes button{font-size:13px}
+ .fotoaviso{color:#94a3b8;font-size:12px;margin-top:7px}
+.midiaacoes{display:none;position:fixed;inset:0;z-index:10001;background:#000b;align-items:center;justify-content:center;padding:18px}
+.midiaacoes.ativa{display:flex}.midiamenu{width:min(360px,100%);background:#1e293b;border:1px solid #475569;border-radius:14px;padding:18px;display:grid;gap:10px;box-shadow:0 20px 70px #0009}
+.midiamenu h3{margin:0 0 4px}.midiamenu button,.midiamenu label{display:block;text-align:center;font-size:15px;padding:12px}
+.plano-painel{background:#172033;border:1px solid #334155;border-radius:12px;padding:12px;margin:12px 0;display:grid;gap:9px}.plano-botao{background:#0e7490;font-weight:700}.midiasecao{margin-top:10px}.midiasecao .file{display:inline-block}.midiavisual{position:relative}.midiavisual video{display:block}
+.midiaopcoes{position:absolute;top:14px;right:9px;background:#0b1220e8;border:1px solid #64748b;border-radius:999px;padding:4px 11px;z-index:1}
+.midiaoculto{display:none!important}
+#fotoModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.94);padding:16px;box-sizing:border-box;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#fotoModal.visivel{display:flex}
+#fotoModal img{max-width:100%;max-height:82vh;object-fit:contain}
+#fotoModal button{align-self:flex-end}
+@media(max-width:650px){.grid{grid-template-columns:1fr 1fr}.series{grid-template-columns:54px minmax(0,1fr) minmax(0,1fr)}}
+
+/* Navegação por ciclo, sem dependência de dia da semana */
+.versao-app{color:#7dd3fc;font-size:12px;margin:-8px 0 12px}
+.sequencia-panel{background:linear-gradient(125deg,#12304a,#172033);border:1px solid #0e7490;border-radius:14px;padding:14px;margin:15px 0;display:grid;gap:12px}
+.sequencia-panel h2{font-size:20px;margin:9px 0 4px}.pill-ciclo{display:inline-block;padding:5px 9px;border-radius:30px;background:#155e75;color:#e0f2fe;font-size:11px;font-weight:bold}
+.seq-comandos{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seq-comandos button{font-weight:700;min-height:48px}
+.historico-painel{margin:12px 0;padding:13px;background:#172033;border:1px solid #334155;border-radius:12px}.historico-painel summary{cursor:pointer;font-weight:bold}.hist-item{margin:10px 0;padding:10px;border:1px solid #334155;border-radius:9px}.hist-item button{font-size:12px;margin-top:7px}.hist-lista{margin-top:8px;white-space:pre-wrap;max-height:300px;overflow:auto}
+.treino-atual{border-color:#22d3ee;box-shadow:0 0 0 1px #0891b2}
+@media(max-width:500px){.seq-comandos{grid-template-columns:1fr}}
+/* Backup e restauração portáveis */
+.backup-panel{background:#172033;border:1px solid #3b526d;border-radius:12px;padding:13px;margin:12px 0;display:grid;gap:10px}
+.backup-panel h2{font-size:17px;margin:0}.backup-commands{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.backup-commands button{padding:12px 8px;font-weight:700}.backup-panel .alerta{font-size:12px;color:#fcd34d;line-height:1.5}
+.backup-panel .backup-status{font-size:12px;color:#86efac;overflow-wrap:anywhere;min-height:18px}
+@media(max-width:370px){.backup-commands{grid-template-columns:1fr}}
+/* Resumos musculares apenas em texto — sem manequins vetoriais */
+.resumo-grupo{background:#0b1220;border:1px solid #334155;border-radius:12px;padding:12px;margin:10px 0;display:grid;gap:8px}
+.resumo-grupo h4{margin:0;font-size:13px;color:#e2e8f0}
+.resumo-geral{background:#172033;border:1px solid #334155;border-radius:12px;padding:12px;margin:12px 0;display:grid;gap:6px}
+.resumo-geral summary{cursor:pointer;font-size:13px;font-weight:700}
+.resumo-geral strong{color:#e2e8f0}
+/* Infográficos anatômicos enviados pelo usuário, um por exercício */
+.anatomiaarea{margin-top:12px;background:linear-gradient(145deg,#080d18,#111c30);border:1px solid #475569;border-radius:13px;padding:12px}
+.anatomiatitulo{font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.anatomiaarea .descricao{color:#94a3b8;font-size:12px;margin:7px 0 8px;line-height:1.45}
+.anatomiaplaceholder{aspect-ratio:16/9;max-height:260px;display:flex;align-items:center;justify-content:center;text-align:center;gap:9px;flex-direction:column;background:#070b13;border:1px dashed #62728a;border-radius:11px;color:#cbd5e1;margin:10px 0;padding:15px;box-sizing:border-box}
+.anatomiaplaceholder .icone{font-size:31px;line-height:1}
+.anatomiapreview{display:none;width:100%;height:auto;max-height:620px;aspect-ratio:16/9;object-fit:contain;background:#020617;border-radius:10px;margin:10px auto;cursor:zoom-in}
+.anatomiabotoes{display:flex;flex-wrap:wrap;gap:8px}
+.anatomiabotoes label,.anatomiaarea button{font-size:13px}
+.anatomiaaviso{font-size:12px;color:#93c5fd;min-height:16px;margin-top:6px}
+.anatomiaacoes{display:none;gap:8px;margin:8px 0}
+.anatomiaacoes.visivel{display:flex}
+
+
+.day-summary{background:#0b1220;border:1px solid #334155;border-radius:12px;padding:12px;margin:2px 0 14px;display:grid;gap:10px}
+.day-summary h3{margin:0;font-size:15px}
+.group-chips,.muscle-chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#1d4ed8;border:1px solid #60a5fa;color:#dbeafe;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
+.chip.alt{background:#1f2937;border-color:#475569;color:#cbd5e1}
+.exercise-focus{display:grid;gap:5px;background:#0b1220;border:1px solid #334155;border-radius:10px;padding:9px;margin:8px 0 2px}
+.exercise-focus .row{font-size:12px;color:#cbd5e1;line-height:1.45}
+.exercise-focus b{color:#fff}
+
+
+/* INTERFACE COMPACTA — MODO FOCO */
+:root{color-scheme:dark;--bg:#0b1120;--panel:#151f31;--panel2:#192538;--border:#29354a;--txt:#f3f6ff;--muted:#9caabd;--blue:#5086f8}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;padding:0;margin:0;line-height:1.45}
+button,input,textarea{font-family:inherit}button{touch-action:manipulation}
+.app-shell{max-width:680px;margin:0 auto;padding:18px 14px 88px}
+.app-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:5px 0 22px}
+.app-top h1{font-size:30px;line-height:1.1;letter-spacing:-.8px;margin:4px 0 4px;font-weight:800}
+.app-top p{margin:0;font-size:13px;color:var(--muted)}
+.brand-eyebrow{font-size:10px;font-weight:800;color:#7dacff;letter-spacing:1.3px}
+.settings-btn{font-size:12px;white-space:nowrap;border:1px solid var(--border);padding:10px 13px;background:#1a263a;border-radius:10px;color:#dbe8ff}
+.sequencia-panel{margin:0 0 16px;padding:16px;background:linear-gradient(145deg,#192b4b,#121d31);border:1px solid #33517a;border-radius:18px;box-shadow:none;display:block}
+.sequence-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.cycle-count{font-size:12px;color:var(--muted)}
+.sequencia-panel h2{font-size:22px;letter-spacing:-.4px;margin:6px 0 14px}
+.treino-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:14px}
+.treino-tab{background:#253349;color:#c1cee2;padding:10px 4px;border:1px solid #34435a;border-radius:11px;font-size:15px;font-weight:800;position:relative}
+.treino-tab.selecionado{background:#2863de;color:white;border-color:#6494ff;box-shadow:inset 0 0 0 1px #ffffff24}
+.treino-tab.atual:not(.selecionado)::after{content:'';position:absolute;top:4px;right:5px;height:5px;width:5px;border-radius:50%;background:#66e0b0}
+.seq-comandos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seq-comandos button{min-width:0;font-size:13px;padding:12px 6px;border-radius:11px;min-height:44px}
+.seq-comandos .alt{background:#2a3a52}
+.settings-panel{background:#141f31;border:1px solid #35455f;border-radius:15px;margin:0 0 14px;padding:13px}
+.settings-head{display:grid;gap:2px;font-size:16px;font-weight:700}.settings-head .small{font-weight:400}
+.backup-panel{margin:12px 0;padding:12px;background:#0d1727;border-radius:12px;gap:8px}
+.backup-panel h2{font-size:15px;margin:0}.backup-panel p{margin:0}.backup-commands button{font-size:13px;padding:10px 5px}
+.settings-subpanel{border:1px solid var(--border);border-radius:11px;margin-top:10px;padding:0 10px}.settings-subpanel summary{padding:12px 2px;font-weight:600;font-size:13px;cursor:pointer}.settings-content{padding:0 3px 13px}.settings-content button{width:100%;font-size:13px}
+.historico-painel{margin:10px 0 0;background:transparent;border-color:var(--border);padding:12px}.historico-painel summary{font-size:13px}
+.storage-alert{margin:0 0 12px;background:#302716;border:1px solid #61512b;border-radius:10px;padding:10px 12px;color:#fbd699;font-size:12px}
+.day-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:19px 2px 11px}
+.day-heading h2{font-size:20px;letter-spacing:-.4px;line-height:1.3;margin:0}
+.day-heading p{font-size:12px;color:var(--muted);margin:2px 0 0}
+.day-counter{font-size:12px;color:#92c5ff;text-align:right;white-space:nowrap}
+.card{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible;margin:0}
+.body{padding:0;border:0}
+.group{background:var(--panel);border:1px solid var(--border);margin:9px 0;border-radius:14px;overflow:hidden}
+.itemtitle{display:block}.group .head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 14px;font-weight:750;font-size:16px;line-height:1.2}
+.group .head .grupo-sub{color:var(--muted);font-weight:500;font-size:11px;margin-top:4px}
+.group .head .caret{color:#c4d4f6;font-size:16px}
+.group>.body{padding:2px 10px 12px;border:0}
+.exercise{margin:8px 0;background:#0d1626;border:1px solid #334257;border-radius:12px;padding:0;overflow:hidden}
+.exercise summary{list-style:none}.exercise summary::-webkit-details-marker{display:none}
+.ex-summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 11px;min-height:62px}
+.ex-summary .ex-title{display:block;color:white;font-weight:700;font-size:14px;line-height:1.4;min-width:0;flex:1}
+.ex-summary .ex-caption{display:block;color:#a9b7ca;font-size:12px;font-weight:400;margin-top:4px}
+.ex-summary .ex-indicator{font-size:11px;color:#a6c2fa;background:#1e3150;border-radius:999px;padding:6px 7px;white-space:nowrap}
+.ex-summary .caret{font-size:18px;line-height:1;color:#9cadc7;transition:transform .2s}
+.exercise[open]>.ex-summary .caret{transform:rotate(180deg)}
+.ex-inner{border-top:1px solid #27354a;padding:12px 10px 13px}
+.anatomiaarea{margin:0 0 13px;padding:0;border:0;background:transparent;border-radius:0}
+.anatomiatitulo,.anatomiaarea .descricao{display:none}
+.anatomiaplaceholder{aspect-ratio:auto;max-height:none;min-height:58px;margin:2px 0 6px;border:1px dashed #51627e;border-radius:11px;background:#142039;padding:12px;display:flex;flex-direction:row;gap:10px;color:#b8c9e3;font-size:12px;cursor:pointer}
+.anatomiaplaceholder .icone{font-size:18px}
+.anatomiapreview{margin:0 0 9px;width:100%;max-height:none;aspect-ratio:16/9;object-fit:contain;border-radius:10px;background:#060b13}
+.anatomiabotoes{display:none!important;margin-top:7px}.anatomiabotoes .file{font-size:12px;padding:8px 11px;display:inline-flex;background:#263d62;border-radius:8px}
+.anatomiaaviso{min-height:0;margin:3px 0;font-size:11px;line-height:1.3}
+.series-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 7px}
+.series-title b{font-size:13px}.series-title span{font-size:11px;color:var(--muted)}
+.series-head{display:grid;grid-template-columns:44px 1fr 1fr;gap:7px;margin:0 0 1px;color:#93a2b6;font-size:11px;text-align:center}
+.series{grid-template-columns:44px minmax(0,1fr) minmax(0,1fr);gap:7px;margin:6px 0}
+.series .concluir{width:44px;height:42px;border-radius:9px;font-size:13px}
+.series input{font-size:16px;min-width:0;background:#0d1728;border-color:#3c4c64;height:42px}
+.timerbox{margin:13px 0 0;padding:11px;border:1px solid #25364c;background:#15243a;border-radius:11px;gap:7px}
+.timerbox .timearea{min-width:65px}.timerbox .timearea .small{font-size:10px}.timerbox .clock{font-size:23px}.timerbox .start{font-size:12px}.timerbox .reset{background:#27364d;font-size:12px;padding:9px}
+.exercise-extras{margin-top:12px;border-top:1px solid #243249}
+.exercise-extras>summary{cursor:pointer;padding:12px 0 1px;color:#a5b8d4;font-weight:650;font-size:12px}
+.extras-body{display:grid;gap:10px;padding:14px 0 4px}
+.extras-body input,.extras-body textarea{font-size:14px}.extras-body .grid{margin:0}.extras-body label>.small{margin-bottom:4px}
+.exercise-focus{margin:0;padding:10px}.exercise-focus .row{font-size:11px}
+.fotoarea{padding:11px;margin:0;background:#111d2f}.fototitulo{font-size:12px}
+.midiasecao{margin:0}.midiasecao label{font-size:12px}
+.removeitem{font-size:12px}.editbar{margin:11px 0 0}.additem{background:#263b5c;color:#c8dbfb;border:1px dashed #485d7b;font-size:12px;width:100%;min-height:42px}
+.group-tools{margin:11px 0 0;border-top:1px solid #27374e}.group-tools>summary{padding:10px 2px;font-size:12px;cursor:pointer;color:#9fb1ca}.group-tools .editbar{display:flex;gap:7px}.group-tools .editbar button{font-size:12px;flex:1}
+.day-controls{margin:14px 0 4px}.day-controls button{width:100%}.day-edit-tools{border:1px solid #2a3850;border-radius:11px;margin:12px 0 0;padding:0 10px}.day-edit-tools>summary{cursor:pointer;padding:11px 2px;color:#96a9c5;font-size:12px;font-weight:650}.seq-comandos:has(#abrirProximo[hidden]){grid-template-columns:1fr}
+.app-footer{text-align:center;color:#718097;font-size:11px;margin-top:32px}
+.small{font-size:12px;color:var(--muted)}
+@media(max-width:370px){.seq-comandos{grid-template-columns:1fr}.app-shell{padding-inline:10px}.app-top h1{font-size:27px}}
+
+
+/* Sincronização Drive: recolhida em Ajustes; um status breve na barra superior. */
+.sync-panel{background:#101b2d;border:1px solid #334155;border-radius:12px;padding:14px;margin:12px 0;display:grid;gap:10px}
+.sync-panel h2{margin:0;font-size:17px}.sync-panel p{font-size:12px;color:#a7b9d3;line-height:1.5;margin:0}
+.sync-panel input[type=text]{font-size:13px}.sync-panel input[type=checkbox]{width:auto;accent-color:#38bdf8}
+.sync-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sync-actions button{font-size:13px;padding:11px 6px}
+#conectarDrive{background:#166088}#driveStatus{font-size:12px;line-height:1.5;overflow-wrap:anywhere;color:#93c5fd}
+#driveStatus[data-level="error"]{color:#fca5a5}#driveStatus[data-level="success"]{color:#86efac}
+#statusCloudTopo{font-size:11px;color:#93c5fd;white-space:nowrap;margin-top:4px}
+#statusCloudTopo[data-level="success"]{color:#86efac}
+@media (max-width:420px){.sync-actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<header class="app-top">
+ <div><div class="brand-eyebrow">SEU TREINO, SEM DISTRAÇÕES</div><h1>Meu Treino</h1><p>Hipertrofia · Ciclo livre</p><div id="statusCloudTopo">☁ Drive</div></div>
+ <button id="abrirAjustes" type="button" class="settings-btn" aria-expanded="false" aria-controls="painelAjustes">⚙ Ajustes</button>
+</header>
+<div id="avisoArmazenamento" class="storage-alert" hidden></div>
+<section class="sequencia-panel" aria-label="Navegação entre treinos">
+ <div class="sequence-head"><span class="brand-eyebrow">TREINO DA VEZ</span><span id="proximoDescricao" class="cycle-count">1 de 5</span></div>
+ <h2 id="proximoTitulo">Treino A</h2>
+ <div id="treinoTabs" class="treino-tabs" role="group" aria-label="Escolher treino"></div>
+ <div class="seq-comandos"><button id="abrirProximo" type="button" class="alt">Ir para o atual</button><button id="avancarTreino" type="button">✓ Concluir e avançar</button></div>
+</section>
+<section id="painelAjustes" class="settings-panel" hidden aria-label="Configurações e backup">
+ <details class="sync-panel"><summary style="font-size:16px;font-weight:800;cursor:pointer">☁ Sincronização com Google Drive</summary>
+ <p>Os treinos são salvos primeiro no celular. Depois de conectar, envie sua ficha e imagens ao Google Drive. Nenhum token Google é guardado neste aparelho.</p>
+ <label for="googleClientId" class="small">OAuth Client ID (Google Cloud)</label>
+ <input id="googleClientId" type="text" autocapitalize="none" spellcheck="false" placeholder="000000-xxxxx.apps.googleusercontent.com" aria-label="OAuth Client ID do Google">
+ <button id="conectarDrive" type="button">Conectar Google</button>
+ <div class="sync-actions"><button id="enviarDrive" type="button" disabled>↑ Enviar ao Drive</button><button id="receberDrive" class="alt" type="button" disabled>↓ Carregar do Drive</button></div>
+ <label class="small"><input id="autoSyncDrive" type="checkbox"> Enviar automaticamente novas séries quando conectado</label>
+ <div id="driveStatus" role="status" aria-live="polite">Configure seu OAuth Client ID e abra o app em HTTPS. A conexão requer sua autorização.</div>
+ <p>O Google Drive guarda a ficha em JSON e imagens/vídeos em arquivos separados. Em dois celulares, confira a versão na nuvem antes de enviar.</p>
+ </details>
+
+ <div class="settings-head">Configurações e segurança <span class="small">Alterações são salvas automaticamente</span></div>
+ <section class="backup-panel" aria-label="Backup dos seus treinos">
+  <h2>Backup dos dados</h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
+  <div class="backup-commands"><button id="exportarBackup" type="button">↓ Exportar backup</button><button id="importarBackup" type="button" class="alt">↑ Restaurar</button></div>
+  <input id="backupArquivo" type="file" accept=".json,application/json" hidden><div id="backupStatus" class="backup-status" role="status" aria-live="polite"></div>
+  <p class="small">A restauração substitui os registros atuais. Salve uma cópia primeiro.</p>
+ </section>
+ <details class="settings-subpanel"><summary>Trocar para a ficha recomendada</summary><div class="settings-content"><p class="small">Aplicar a divisão A → B → D → E → C. A ficha anterior é arquivada e registros equivalentes são reaproveitados. Use só quando desejar trocar sua ficha.</p><button type="button" id="aplicarPlano" class="plano-botao">Atualizar ficha preservando histórico</button><div id="planoMensagem" class="small" role="status"></div></div></details>
+ <details class="historico-painel"><summary>Fichas anteriores</summary><div id="historicoConteudo" class="small">Carregando histórico...</div></details>
+</section>
+<div id="app" aria-live="off"></div>
+<footer class="app-footer">Seus registros ficam neste navegador. Faça backups regularmente.</footer>
+</div>
+<div id="fotoModal" role="dialog" aria-modal="true" aria-label="Visualizar foto do aparelho"><button type="button" onclick="fecharFoto()">✕ Fechar foto</button><img id="fotoGrande" alt="Imagem ampliada do exercício"></div>
+
+<div id="midiaMenu" class="midiaacoes" role="dialog" aria-modal="true" aria-label="Opções da mídia"><div class="midiamenu"><h3 id="midiaMenuTitulo">Opções</h3><button id="midiaAmpliar" type="button">🔎 Ampliar imagem</button><button id="midiaTrocar" type="button">📁 Trocar mídia</button><button id="midiaRemover" class="danger" type="button">🗑️ Remover mídia</button><button id="midiaCancelar" class="alt" type="button">Cancelar</button></div></div>
+<script>
+const KEY='treino_cascata_timer_v1';
+const LIBKEY='treino_biblioteca_grupos_v1';
+function ex(nome,series,reps,desc){return {nome,series,reps,carga:'',desc,obs:'',video:null,sets:Array.from({length:series},()=>({kg:'',reps:'',ok:false}))}}
+const PLANO_ID='hipertrofia-ciclo-abdec-2026-11-23';
+const PLANO_KEY='treino_plano_ativo_v2';
+const CICLO_KEY='treino_ciclo_posicao_v2';
+function x(nome,series,reps,desc,obs=''){
+ const e=ex(nome,series,reps,desc);e.obs=obs;return e;
+}
+const padrao=[
+{dia:'Treino A — Peito, ombros e tríceps',sigla:'A',aberto:false,grupos:[
+ {nome:'Peito',aberto:false,ex:[
+  x('Supino reto com halteres',3,'6-10',150,'Peitoral maior (região esternal). Amplitude confortável e progressão de carga.'),
+  x('Supino inclinado na máquina convergente',3,'8-12',150,'Peitoral superior; se não houver máquina, usar halteres com banco a 15–30°.'),
+  x('Crossover na polia alta',2,'12-15',90,'Peitoral; movimento controlado sem balanço.')
+ ]},
+ {nome:'Ombros',aberto:false,ex:[
+  x('Desenvolvimento de ombros na máquina',2,'8-12',120,'Deltoide anterior e lateral.'),
+  x('Elevação lateral unilateral na polia',3,'12-20',75,'Deltoide lateral; controle e amplitude confortável.'),
+  x('Crucifixo inverso na máquina',2,'12-15',75,'Deltoide posterior.')
+ ]},
+ {nome:'Tríceps',aberto:false,ex:[
+  x('Tríceps francês acima da cabeça na polia',3,'10-15',90,'Tríceps com ênfase na cabeça longa.'),
+  x('Tríceps na polia com corda',2,'10-15',75,'Extensão de cotovelo com braços ao lado do corpo.')
+ ]}
+]},
+{dia:'Treino B — Quadríceps e panturrilhas',sigla:'B',aberto:false,grupos:[
+ {nome:'Quadríceps',aberto:false,ex:[
+  x('Agachamento Hack',3,'6-10',180,'Quadríceps. Não force amplitude que descole quadril/lombar do apoio.'),
+  x('Leg press 45°',3,'10-15',150,'Quadríceps e glúteos. Mantenha a lombar apoiada.'),
+  x('Cadeira extensora',3,'10-15',90,'Quadríceps: reto femoral e vastos.')
+ ]},
+ {nome:'Posterior (leve)',aberto:false,ex:[x('Cadeira flexora sentada',2,'10-15',90,'Isquiotibiais, trabalho complementar.')]},
+ {nome:'Panturrilhas',aberto:false,ex:[
+  x('Panturrilha em pé na máquina',3,'8-12',90,'Gastrocnêmio medial e lateral.'),
+  x('Panturrilha sentado',2,'12-20',75,'Maior ênfase relativa no sóleo.')
+ ]}
+]},
+{dia:'Treino D — Superiores completos',sigla:'D',aberto:false,grupos:[
+ {nome:'Peito',aberto:false,ex:[
+  x('Supino inclinado com halteres',3,'8-12',150,'Peitoral superior.'),
+  x('Peck deck (voador)',2,'12-15',90,'Peitoral maior.')
+ ]},
+ {nome:'Costas',aberto:false,ex:[
+  x('Puxada frontal na polia com pegada pronada',2,'8-12',120,'Dorsais e redondo maior.'),
+  x('Remada baixa na polia',2,'10-12',120,'Dorsais e região média das costas.')
+ ]},
+ {nome:'Ombros',aberto:false,ex:[
+  x('Elevação lateral com halteres',3,'12-20',75,'Deltoide lateral.'),
+  x('Crucifixo inverso na polia',2,'12-15',75,'Deltoide posterior.')
+ ]},
+ {nome:'Bíceps',aberto:false,ex:[x('Rosca direta na polia baixa com barra W',2,'10-15',75,'Bíceps braquial.')]},
+ {nome:'Tríceps',aberto:false,ex:[x('Tríceps na polia com barra V',2,'10-15',75,'Tríceps braquial.')]}
+]},
+{dia:'Treino E — Posterior, glúteos e pernas',sigla:'E',aberto:false,grupos:[
+ {nome:'Posterior',aberto:false,ex:[
+  x('Terra romeno com halteres',3,'8-10',180,'Isquiotibiais e glúteos; coluna neutra e amplitude controlada.'),
+  x('Cadeira flexora sentada',3,'10-15',90,'Isquiotibiais em posição alongada.')
+ ]},
+ {nome:'Glúteos',aberto:false,ex:[x('Elevação pélvica no Smith',3,'8-12',120,'Glúteo máximo.')]},
+ {nome:'Quadríceps (complementar)',aberto:false,ex:[
+  x('Agachamento búlgaro com halteres',2,'8-12',120,'Por perna; quadríceps e glúteos.'),
+  x('Cadeira extensora',2,'12-15',90,'Quadríceps.')
+ ]},
+ {nome:'Adutores',aberto:false,ex:[x('Cadeira adutora',2,'12-15',75,'Adutores da coxa.')]},
+ {nome:'Abdutores',aberto:false,ex:[x('Cadeira abdutora',2,'15-20',75,'Glúteo médio e outros abdutores do quadril.')]},
+ {nome:'Panturrilhas',aberto:false,ex:[
+  x('Panturrilha em pé na máquina',3,'8-12',90,'Gastrocnêmio.'),
+  x('Panturrilha sentado',2,'12-20',75,'Sóleo.')
+ ]}
+]},
+{dia:'Treino C — Costas, bíceps e abdômen',sigla:'C',aberto:false,grupos:[
+ {nome:'Costas',aberto:false,ex:[
+  x('Puxada frontal na polia com pegada neutra',3,'8-12',150,'Latíssimo do dorso; largura das costas.'),
+  x('Remada articulada com peito apoiado',3,'8-12',150,'Romboides, trapézio médio e dorsais.'),
+  x('Remada serrote com halter',2,'10-15',120,'Substitui a remada unilateral na polia. Faça por braço, com tronco estável.'),
+  x('Pulldown com braços estendidos na polia',2,'12-15',90,'Latíssimo do dorso; minimize flexão dos cotovelos.')
+ ]},
+ {nome:'Bíceps',aberto:false,ex:[
+  x('Rosca inclinada com halteres',3,'8-12',90,'Bíceps em posição alongada.'),
+  x('Rosca Scott na máquina',2,'10-12',90,'Bíceps com estabilidade.'),
+  x('Rosca martelo com halteres',2,'10-15',75,'Braquial e braquiorradial.'),
+  x('Rosca concentrada com halter',2,'10-15',75,'Exercício extra. Faça por braço, sem balançar o tronco.')
+ ]},
+ {nome:'Abdômen',aberto:false,ex:[
+  x('Crunch abdominal na polia',3,'10-15',75,'Reto abdominal.'),
+  x('Pallof press na polia',2,'10-15',75,'Por lado; oblíquos e estabilização anti-rotação.')
+ ]}
+]}
+];
+let dados;try{dados=JSON.parse(localStorage.getItem(KEY))||JSON.parse(JSON.stringify(padrao))}catch{dados=JSON.parse(JSON.stringify(padrao))}
+if(!localStorage.getItem(KEY))localStorage.setItem(PLANO_KEY,PLANO_ID);
+// Registros de carga/repetições são a referência permanente de cada exercício.
+// As marcações S1/S2/S3 representam apenas a sessão do dia corrente.
+function dataLocal(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function prepararSessoes(){
+ const hoje=dataLocal();let alterado=false;
+ for(const dia of dados)for(const grupo of dia.grupos)for(const e of grupo.ex){
+  if(!Array.isArray(e.sets)){e.sets=[];alterado=true}
+  // Na migração, preserve cargas e repetições já registradas, mas não carregue
+  // séries concluídas antigas como se pertencessem ao treino de hoje.
+  if(e.sessaoData!==hoje){
+   for(const s of e.sets){if(s.ok){s.ok=false;alterado=true}}
+   e.sessaoData=hoje;alterado=true;
+  }
+ }
+ if(alterado)salvar();
+}
+prepararSessoes();
+let T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null};
+// IndexedDB é a opção principal. Em Android (content://, alguns leitores de HTML),
+// pode ser bloqueado; usamos localStorage para imagens COMPACTADAS como compatibilidade.
+// Nunca afirmamos que essa opção tem a mesma capacidade/garantia do IndexedDB.
+const FOTO_DB='meu_treino_fotos_v1', FOTO_STORE='aparelhos';
+const FOTO_LOCAL_PREFIX='meu_treino_imagem_compat_v1__';
+let fotoDbPromise,midiaSomenteLocal=false;
+const avisoMemoria=document.getElementById('avisoArmazenamento');
+function avisarModoCompatibilidade(){
+ if(avisoMemoria){avisoMemoria.hidden=false;avisoMemoria.textContent='⚠️ Armazenamento limitado no Android. Faça um backup em ⚙ Ajustes após adicionar imagens.'}
+}
+function ativarModoLocal(erro){
+ if(!midiaSomenteLocal){console.warn('IndexedDB indisponível; usando armazenamento local de imagens:',erro);midiaSomenteLocal=true;avisarModoCompatibilidade()}
+}
+function bancoFotos(){
+ if(midiaSomenteLocal)return Promise.reject(new Error('IndexedDB indisponível; modo local ativo'));
+ if(!('indexedDB' in window)){ativarModoLocal('API não disponível');return Promise.reject(new Error('IndexedDB indisponível'))}
+ if(!fotoDbPromise){
+  fotoDbPromise=new Promise((resolve,reject)=>{
+   let req;
+   try{req=indexedDB.open(FOTO_DB,1)}catch(e){reject(e);return}
+   req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(FOTO_STORE))req.result.createObjectStore(FOTO_STORE)};
+   req.onsuccess=()=>resolve(req.result);
+   req.onerror=()=>reject(req.error||new Error('Falha ao abrir o banco de imagens'));
+   req.onblocked=()=>reject(new Error('Banco de imagens bloqueado'));
+  }).catch(err=>{ativarModoLocal(err);throw err});
+ }
+ return fotoDbPromise;
+}
+function chavesMidiaLocal(){
+ const ret=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k?.startsWith(FOTO_LOCAL_PREFIX))ret.push(k)}return ret;
+}
+// Preserva textos de infográficos com JPEG/WebP de resolução adaptável. Não altera o arquivo original na galeria.
+async function otimizarFotoLocal(blob,largura=1500,qualidade=.88){
+ if(!blob.type.startsWith('image/'))throw new Error('Este navegador não permite armazenar vídeos aqui. Abra o aplicativo por HTTPS para adicionar vídeos; seus registros de treino continuam disponíveis.');
+ const u=URL.createObjectURL(blob);
+ try{
+  const img=await new Promise((resolve,reject)=>{const x=new Image();x.onload=()=>resolve(x);x.onerror=()=>reject(new Error('Não consegui ler a imagem'));x.src=u});
+  const escala=Math.min(1,largura/Math.max(img.naturalWidth,img.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*escala));canvas.height=Math.max(1,Math.round(img.naturalHeight*escala));
+  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Não foi possível preparar a imagem');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+  const b=await new Promise((resolve,reject)=>canvas.toBlob(v=>v?resolve(v):reject(new Error('Falha na compactação da imagem')),'image/webp',qualidade));
+  return b;
+ }finally{URL.revokeObjectURL(u)}
+}
+async function guardarFotoLocal(id,blob){
+ if(!(blob instanceof Blob))throw new Error('Arquivo inválido');
+ if(!blob.type.startsWith('image/'))throw new Error('Vídeos não podem ser salvos no modo local do Android. Use uma versão HTTPS do aplicativo para vídeos.');
+ let ultimoErro;
+ const tentativas=[[1600,.90],[1400,.87],[1250,.82],[1100,.77],[950,.70],[820,.64]];
+ for(const [largura,qualidade] of tentativas){
+  const reduzido=await otimizarFotoLocal(blob,largura,qualidade);
+  const base64=await blobEmBase64(reduzido);
+  try{
+   localStorage.setItem(FOTO_LOCAL_PREFIX+id,base64);
+   return reduzido;
+  }catch(err){ultimoErro=err;if(err?.name==='SecurityError')break}
+ }
+ throw new Error('Sem espaço ou sem permissão para salvar esta imagem neste endereço local do Android. Faça backup e abra o aplicativo via HTTPS para guardar mais imagens. '+(ultimoErro?.message||''));
+}
+async function obterFoto(id){
+ try{const local=localStorage.getItem(FOTO_LOCAL_PREFIX+id);if(local)return dataUrlEmBlob(local)}catch(err){console.warn('Falha ao acessar imagem local',err)}
+ if(midiaSomenteLocal)return null;
+ try{
+  const db=await bancoFotos();return await new Promise((resolve,reject)=>{
+   const req=db.transaction(FOTO_STORE,'readonly').objectStore(FOTO_STORE).get(id);
+   req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)
+  });
+ }catch(err){ativarModoLocal(err);return null}
+}
+async function guardarFoto(id,blob){
+ if(!midiaSomenteLocal){
+  try{
+   const db=await bancoFotos();
+   await new Promise((resolve,reject)=>{const tx=db.transaction(FOTO_STORE,'readwrite');tx.objectStore(FOTO_STORE).put(blob,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Erro ao salvar a mídia'))});
+   localStorage.removeItem(FOTO_LOCAL_PREFIX+id);
+   return blob;
+  }catch(err){ativarModoLocal(err)}
+ }
+ return guardarFotoLocal(id,blob);
+}
+async function excluirFoto(id){
+ // Não remover uma eventual imagem local se não conseguirmos apagar a do IndexedDB.
+ if(!midiaSomenteLocal){
+  try{const db=await bancoFotos();await new Promise((resolve,reject)=>{const tx=db.transaction(FOTO_STORE,'readwrite');tx.objectStore(FOTO_STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});}catch(err){ativarModoLocal(err)}
+ }
+ localStorage.removeItem(FOTO_LOCAL_PREFIX+id);
+}
+let midiaMenuAtual=null;
+function fecharMenuMidia(){document.getElementById('midiaMenu').classList.remove('ativa');midiaMenuAtual=null}
+function abrirMenuMidia(tipo,acoes){midiaMenuAtual=acoes;const m=document.getElementById('midiaMenu');document.getElementById('midiaMenuTitulo').textContent=tipo==='anatomia'?'🧠 Imagem anatômica':tipo==='foto'?'📷 Foto do aparelho':'🎬 Vídeo do exercício';document.getElementById('midiaAmpliar').style.display=tipo==='video'?'none':'block';m.classList.add('ativa')}
+document.getElementById('midiaCancelar').onclick=fecharMenuMidia;
+document.getElementById('midiaMenu').onclick=e=>{if(e.target.id==='midiaMenu')fecharMenuMidia()};
+for(const [botao,acao] of [['midiaAmpliar','ampliar'],['midiaTrocar','trocar'],['midiaRemover','remover']]){
+ document.getElementById(botao).onclick=()=>{const f=midiaMenuAtual?.[acao];fecharMenuMidia();if(f)f()};
+}
+function abrirFoto(src){document.getElementById('fotoGrande').src=src;document.getElementById('fotoModal').classList.add('visivel')}
+function fecharFoto(){document.getElementById('fotoModal').classList.remove('visivel');document.getElementById('fotoGrande').removeAttribute('src')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){fecharFoto();fecharMenuMidia()}});
+document.getElementById('fotoModal').addEventListener('click',e=>{if(e.target.id==='fotoModal')fecharFoto()});
+async function reduzirFoto(file){
+ // Reduz fotos grandes para preservar espaço no celular, sem alterar o treino.
+ if(!file.type.startsWith('image/')) throw new Error('Selecione uma imagem válida');
+ const url=URL.createObjectURL(file);
+ try{
+  const im=await new Promise((res,rej)=>{const img=new Image();img.onload=()=>res(img);img.onerror=()=>rej(new Error('Não foi possível abrir esta foto'));img.src=url});
+  const limite=1400, escala=Math.min(1,limite/Math.max(im.naturalWidth,im.naturalHeight));
+  const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(im.naturalWidth*escala));canvas.height=Math.max(1,Math.round(im.naturalHeight*escala));
+  canvas.getContext('2d').drawImage(im,0,0,canvas.width,canvas.height);
+  return await new Promise((res,rej)=>canvas.toBlob(b=>b?res(b):rej(new Error('Falha ao preparar a foto')),'image/jpeg',.82));
+ }finally{URL.revokeObjectURL(url)}
+}
+
+function validarImagemAnatomica(file){
+ if(!file || !['image/png','image/jpeg','image/webp','image/avif'].includes(file.type))throw new Error('Escolha uma imagem PNG, JPG, WebP ou AVIF.');
+ if(file.size>25*1024*1024)throw new Error('Esta imagem excede 25 MB. Envie uma versão menor.');
+ // A imagem original é guardada sem recompressão, preservando os textos legíveis.
+ return file;
+}
+function salvar(){localStorage.setItem(KEY,JSON.stringify(dados))}
+function fmt(s){s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function beep(){try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=900;g.gain.value=.15;o.start();setTimeout(()=>o.stop(),300)}catch{} if(navigator.vibrate)navigator.vibrate([300,150,500])}
+function iniciar(id,seg){clearInterval(T.intervalo);T={id,rest:+seg||0,rodando:true,ultimo:Date.now(),intervalo:null};T.intervalo=setInterval(tick,250);renderRelogios()}
+function tick(){if(!T.rodando)return;const n=Date.now();T.rest-=(n-T.ultimo)/1000;T.ultimo=n;if(T.rest<=0){T.rest=0;T.rodando=false;clearInterval(T.intervalo);beep()}renderRelogios()}
+function pausa(){if(!T.id)return;T.rodando=!T.rodando;T.ultimo=Date.now();renderRelogios()}
+function zerar(){clearInterval(T.intervalo);T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null};renderRelogios()}
+function renderRelogios(){document.querySelectorAll('[data-timer]').forEach(x=>{const c=x.querySelector('.clock'),botao=x.querySelector('.start');const ativo=x.dataset.timer===T.id;c.textContent=ativo?fmt(T.rest):fmt(+x.dataset.desc||0);botao.textContent=ativo?(T.rodando?'⏸ Pausar':'▶ Continuar'):'▶ Iniciar';botao.setAttribute('aria-label',ativo?(T.rodando?'Pausar descanso':'Continuar descanso'):'Iniciar descanso');})}
+function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
+
+// Mapa anatômico ilustrativo: volume relativo de séries marcadas e atuação principal/indireta.
+const PARTES=['peito','deltoide_anterior','deltoide_lateral','deltoide_posterior','biceps','triceps','braquiorradial','flexores_punho','extensores_punho','trapezio','romboides','dorsais','eretores','reto_abdominal','obliquos','serrato','quadriceps','adutores','posterior','gluteos','panturrilhas','tibial'];
+const ROTULOS={peito:'Peitoral',deltoide_anterior:'Deltoide anterior',deltoide_lateral:'Deltoide lateral',deltoide_posterior:'Deltoide posterior',biceps:'Bíceps',triceps:'Tríceps',braquiorradial:'Braquiorradial',flexores_punho:'Flexores do punho',extensores_punho:'Extensores do punho',trapezio:'Trapézio',romboides:'Romboides',dorsais:'Dorsais',eretores:'Eretores da coluna',reto_abdominal:'Reto abdominal',obliquos:'Oblíquos',serrato:'Serrátil anterior',quadriceps:'Quadríceps',adutores:'Adutores',posterior:'Posteriores da coxa',gluteos:'Glúteos',panturrilhas:'Panturrilhas',tibial:'Tibial anterior'};
+function normalizarTexto(t){return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+function padraoGrupoMuscular(nome){
+ const n=normalizarTexto(nome);
+ if(/peito|peitoral/.test(n))return ['peito'];
+ if(/ombro|deltoide/.test(n))return ['deltoide_anterior','deltoide_lateral','deltoide_posterior'];
+ if(/triceps/.test(n))return ['triceps'];
+ if(/biceps/.test(n))return ['biceps'];
+ if(/costas|dorsal/.test(n))return ['dorsais'];
+ if(/trapezio/.test(n))return ['trapezio'];
+ if(/quadriceps/.test(n))return ['quadriceps'];
+ if(/posterior|isquiotib/.test(n))return ['posterior'];
+ if(/gluteo|abdutor/.test(n))return ['gluteos'];
+ if(/panturrilha/.test(n))return ['panturrilhas'];
+ if(/abdomen|abdominal|core/.test(n))return ['reto_abdominal','obliquos'];
+ if(/lombar/.test(n))return ['eretores'];
+ if(/antebraco/.test(n))return ['braquiorradial','flexores_punho'];
+ if(/adutor/.test(n))return ['adutores'];
+ return [];
+}
+function musculosDoExercicio(nome,grupo){
+ const n=normalizarTexto(nome), principais=[],indiretos=[];
+ const p=(...a)=>principais.push(...a),i=(...a)=>indiretos.push(...a);
+ if(/crucifixo inverso|reverse fly|face pull|voador inverso/.test(n)){p('deltoide_posterior');i('romboides','trapezio')}
+ else if(/supino|crucifixo|crossover|peck|voador|flexao de braco/.test(n)){p('peito');i('triceps','deltoide_anterior','serrato')}
+ else if(/desenvolvimento|shoulder press/.test(n)){p('deltoide_anterior','deltoide_lateral');i('triceps','trapezio')}
+ else if(/elevacao lateral/.test(n)){p('deltoide_lateral');i('trapezio')}
+ else if(/elevacao frontal/.test(n)){p('deltoide_anterior');i('serrato')}
+ else if(/remada alta/.test(n)){p('deltoide_lateral','trapezio');i('biceps')}
+ else if(/remada|serrote/.test(n)){p('dorsais','romboides');i('biceps','deltoide_posterior','trapezio','braquiorradial')}
+ else if(/puxada|pulldown|barra fixa|pullover/.test(n)){p('dorsais');i('biceps','braquiorradial','romboides')}
+ else if(/encolhimento/.test(n)){p('trapezio');i('braquiorradial')}
+ else if(/rosca inversa/.test(n)){p('braquiorradial','biceps');i('extensores_punho')}
+ else if(/rosca martelo/.test(n)){p('braquiorradial','biceps');i('flexores_punho')}
+ else if(/rosca de punho|flexao de punho/.test(n)){p('flexores_punho')}
+ else if(/extensao de punho/.test(n)){p('extensores_punho')}
+ else if(/rosca/.test(n)){p('biceps');i('braquiorradial','flexores_punho')}
+ else if(/triceps|testa|frances/.test(n)){p('triceps');i('deltoide_anterior')}
+ else if(/agachamento|leg press|hack|afundo|passada/.test(n)){p('quadriceps','gluteos');i('adutores','posterior','reto_abdominal')}
+ else if(/extensora/.test(n)){p('quadriceps')}
+ else if(/flexora/.test(n)){p('posterior');i('panturrilhas')}
+ else if(/terra romeno|stiff/.test(n)){p('posterior','gluteos');i('eretores','braquiorradial')}
+ else if(/terra|levantamento terra/.test(n)){p('gluteos','posterior','eretores');i('quadriceps','trapezio','braquiorradial')}
+ else if(/elevacao pelvica|hip thrust|ponte de gluteo/.test(n)){p('gluteos');i('posterior')}
+ else if(/aducao|adutora/.test(n)){p('adutores')}
+ else if(/abducao|abdutora/.test(n)){p('gluteos')}
+ else if(/panturrilha/.test(n)){p('panturrilhas')}
+ else if(/tibial/.test(n)){p('tibial')}
+ else if(/prancha lateral|rotacao de tronco|pallof/.test(n)){p('obliquos');i('reto_abdominal')}
+ else if(/prancha|crunch|abdominal/.test(n)){p('reto_abdominal');i('obliquos')}
+ else if(/lombar|hiperextensao/.test(n)){p('eretores');i('gluteos','posterior')}
+ if(!principais.length)p(...padraoGrupoMuscular(grupo));
+ return {principais:[...new Set(principais)],indiretos:[...new Set(indiretos.filter(x=>!principais.includes(x)))]};
+}
+function contribuicao(e,grupo){
+ const m=musculosDoExercicio(e.nome,grupo),feito=(e.sets||[]).filter(s=>s.ok).length;
+ const planejadas=Math.max(0,Number(e.series)||0),principais={},indiretos={},previsaoPrincipal={},previsaoIndireta={};
+ for(const musculo of m.principais){principais[musculo]=feito;previsaoPrincipal[musculo]=planejadas}
+ for(const musculo of m.indiretos){indiretos[musculo]=feito*.35;previsaoIndireta[musculo]=planejadas*.35}
+ return {principais,indiretos,previsaoPrincipal,previsaoIndireta,feito};
+}
+function resumoMapaItens(itens){
+ const total={};let concluidas=0;
+ for(const {e,grupo} of itens){
+  const c=contribuicao(e,grupo);concluidas+=c.feito;
+  for(const [chave,campo] of [['principais','principal'],['indiretos','indireto'],['previsaoPrincipal','planejado'],['previsaoIndireta','auxiliarPlanejado']]){
+   for(const [m,n] of Object.entries(c[chave])){const t=total[m]||(total[m]={principal:0,indireto:0,planejado:0,auxiliarPlanejado:0});t[campo]+=n}
+  }
+ }
+ return {total,concluidas};
+}
+function resumoMapa(exercicios,grupo){return resumoMapaItens(exercicios.map(e=>({e,grupo})))}
+function listaMusculos(res,tipo){
+ return Object.entries(res.total)
+  .filter(([,t])=>tipo==='principal'?t.planejado>0:t.auxiliarPlanejado>0)
+  .sort((a,b)=>tipo==='principal'?(b[1].planejado-a[1].planejado):(b[1].auxiliarPlanejado-a[1].auxiliarPlanejado))
+  .map(([m,t])=>tipo==='principal'?`${ROTULOS[m]} (${Math.round(t.principal)}/${Math.round(t.planejado)} séries)`:ROTULOS[m]);
+}
+function htmlChips(arr,alt=false,vazio='Nenhum'){return (arr&&arr.length?arr:[vazio]).map(x=>`<span class="chip ${alt?'alt':''}">${esc(x)}</span>`).join('')}
+function htmlFocoExercicio(e,grupo){
+ const m=musculosDoExercicio(e.nome,grupo);
+ const principais=m.principais.map(x=>ROTULOS[x]);
+ const indiretos=m.indiretos.map(x=>ROTULOS[x]);
+ return `<div class="exercise-focus"><div class="row"><b>Foco principal:</b> ${esc(principais.join(', ')||grupo||'não definido')}</div><div class="row"><b>Participação auxiliar:</b> ${esc(indiretos.join(', ')||'nenhuma relevante')}</div></div>`;
+}
+function htmlResumoDia(dia){
+ const itens=dia.grupos.flatMap(g=>(g.ex||[]).map(e=>({e,grupo:g.nome})));
+ const res=resumoMapaItens(itens);
+ const grupos=dia.grupos.map(g=>g.nome);
+ const principais=listaMusculos(res,'principal');
+ const indiretos=listaMusculos(res,'indireto');
+ return `<section class="day-summary"><div><h3>📋 Visão do treino</h3><div class="small">Resumo dos grupos musculares, sem manequins. As imagens anatômicas ficam na ficha de cada exercício.</div></div><div><div class="small"><strong>Grupos deste treino</strong></div><div class="group-chips">${htmlChips(grupos,false,'Nenhum grupo cadastrado')}</div></div><div class="small"><strong>Séries concluídas nesta sessão:</strong> ${res.concluidas}</div><div><div class="small"><strong>Músculos principais</strong></div><div class="muscle-chip-wrap">${htmlChips(principais,false,'Sem exercícios cadastrados')}</div></div><div><div class="small"><strong>Participação auxiliar</strong></div><div class="muscle-chip-wrap">${htmlChips(indiretos,true,'Nenhum auxiliar previsto')}</div></div></section>`;
+}
+function htmlResumoGrupo(exercicios,grupo){
+ const res=resumoMapa(exercicios,grupo);
+ const principais=listaMusculos(res,'principal'),indiretos=listaMusculos(res,'indireto');
+ return `<div class="resumo-grupo"><h4>🎯 Resumo muscular do grupo · ${res.concluidas} séries concluídas</h4><div class="muscle-chip-wrap">${htmlChips(principais,false,'Nenhum músculo principal')}</div>${indiretos.length?`<div class="small">Auxiliares: ${esc(indiretos.join(', '))}</div>`:''}</div>`;
+}
+
+function renderEx(e,di,gi,ei){
+ const id=di+'-'+gi+'-'+ei;
+ while(e.sets.length<e.series)e.sets.push({kg:'',reps:'',ok:false});
+ e.sets=e.sets.slice(0,e.series);
+ const d=document.createElement('details');d.className='exercise';
+ const finalizadas=e.sets.filter(s=>s.ok).length;
+ d.innerHTML=`
+  <summary class="ex-summary"><span class="ex-title">${esc(e.nome)}<span class="ex-caption">${esc(e.series)} séries · ${esc(e.reps)} repetições</span></span><span class="ex-indicator">${finalizadas}/${e.series}</span><span class="caret">⌄</span></summary>
+  <div class="ex-inner">
+  <div class="anatomiaarea">
+   <div class="anatomiaplaceholder" title="Selecionar imagem"><span class="icone">🖼</span><span>+ Adicionar imagem anatômica</span></div>
+   <img class="anatomiapreview" alt="Infografia anatômica deste exercício" title="Toque para ampliar ou gerenciar">
+   <div class="anatomiabotoes"><label class="file">+ Adicionar imagem<input class="anatomiafile" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden></label></div>
+   <div class="anatomiaaviso" aria-live="polite"></div>
+  </div>
+  <div class="series-title"><b>Minhas séries</b><span>Toque em S1 para concluir</span></div>
+  <div class="series-head"><span>Série</span><span>Carga (kg)</span><span>Reps</span></div>
+  ${e.sets.map((s,i)=>`<div class="series" data-s="${i}"><button type="button" class="${s.ok?'done':'alt'} concluir" aria-pressed="${s.ok}" aria-label="${s.ok?'Desmarcar':'Concluir'} série ${i+1}">${s.ok?'✓ S'+(i+1):'S'+(i+1)}</button><input class="kg" type="number" step="0.5" placeholder="kg" aria-label="Carga da série ${i+1} em kg" value="${esc(s.kg)}"><input class="rp" type="number" placeholder="reps" aria-label="Repetições da série ${i+1}" value="${esc(s.reps)}"></div>`).join('')}
+  <div class="timerbox" data-timer="${id}" data-desc="${e.desc}">
+   <div class="timearea"><div class="small">Descanso</div><div class="clock">${T.id===id?fmt(T.rest):fmt(e.desc)}</div></div>
+   <button class="start">▶ Iniciar</button><button class="reset">↺</button>
+  </div>
+  <details class="exercise-extras"><summary>⚙ Editar exercício e mídias</summary><div class="extras-body">
+   <label><div class="small">Nome do exercício</div><input class="nome" value="${esc(e.nome)}"></label>
+   <div class="grid">
+    <label><div class="small">Séries</div><input class="seriesn" type="number" min="1" value="${e.series}"></label>
+    <label><div class="small">Reps alvo</div><input class="repsalvo" value="${esc(e.reps)}"></label>
+    <label><div class="small">Carga padrão kg</div><input class="carga" type="number" step="0.5" value="${esc(e.carga)}"></label>
+    <label><div class="small">Descanso seg</div><input class="desc" type="number" min="0" value="${e.desc}"></label>
+   </div>
+   ${htmlFocoExercicio(e,dados[di].grupos[gi].nome)}
+   <label><div class="small">Observações</div><textarea class="obs" rows="2">${esc(e.obs)}</textarea></label>
+   <div class="fotoarea"><div class="fototitulo">Foto do aparelho (opcional)</div><img class="fotopreview" alt="Foto do aparelho deste exercício" title="Toque para gerenciar a foto"><div class="fotobotoes"><label class="file">+ Foto<input class="fotofile" type="file" accept="image/*" hidden></label><label class="file alt">📷 Câmera<input class="fotocamera" type="file" accept="image/*" capture="environment" hidden></label></div><div class="fotoaviso"></div></div>
+   <div class="midiasecao"><div class="videoadd"><label class="file alt">+ Vídeo do exercício<input class="video" type="file" accept="video/*" hidden></label></div><div class="videohost"></div></div>
+   <button type="button" class="removeitem removeex">Excluir exercício</button>
+  </div></details>
+ </div>`;
+ d.open=!!e.aberto;
+ d.addEventListener('toggle',()=>{if(e.aberto!==d.open){e.aberto=d.open;salvar()}});
+ const q=s=>d.querySelector(s);
+ q('.anatomiaplaceholder').setAttribute('role','button');
+ q('.anatomiaplaceholder').tabIndex=0;
+ q('.anatomiaplaceholder').onclick=()=>q('.anatomiafile').click();
+ q('.anatomiaplaceholder').onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();q('.anatomiafile').click()}};
+ q('.removeex').onclick=()=>removerExercicio(di,gi,ei);
+ q('.nome').onchange=x=>{e.nome=x.target.value;salvar();render()};
+ q('.seriesn').onchange=x=>{e.series=Math.max(1,+x.target.value||1);salvar();render()};
+ q('.repsalvo').oninput=x=>{e.reps=x.target.value;salvar()};
+ q('.carga').oninput=x=>{e.carga=x.target.value;salvar()};
+ q('.desc').oninput=x=>{e.desc=Math.max(0,+x.target.value||0);q('.timerbox').dataset.desc=e.desc;salvar();renderRelogios()};
+ q('.obs').oninput=x=>{e.obs=x.target.value;salvar()};
+ d.querySelectorAll('.series').forEach(r=>{const i=+r.dataset.s,s=e.sets[i];r.querySelector('.kg').oninput=x=>{s.kg=x.target.value;salvar()};r.querySelector('.rp').oninput=x=>{s.reps=x.target.value;salvar()};r.querySelector('.concluir').onclick=()=>{s.ok=!s.ok;salvar();render()}});
+ q('.start').onclick=()=>{if(T.id!==id||T.rest<=0)iniciar(id,e.desc);else pausa()};q('.reset').onclick=()=>{if(T.id===id)zerar();else renderRelogios()};
+ const anatomiaId='anatomia-'+id;
+ const anatPreview=q('.anatomiapreview'),anatPlaceholder=q('.anatomiaplaceholder'),anatBot=q('.anatomiabotoes'),anatAviso=q('.anatomiaaviso');
+ let anatUrl=null;
+ function atualizarAnatomia(blob){
+  if(anatUrl)URL.revokeObjectURL(anatUrl);
+  anatUrl=blob?URL.createObjectURL(blob):null;
+  if(anatUrl){anatPreview.src=anatUrl;anatPreview.style.display='block';anatPlaceholder.style.display='none';anatBot.classList.add('midiaoculto')}
+  else{anatPreview.removeAttribute('src');anatPreview.style.display='none';anatPlaceholder.style.display='flex';anatBot.classList.remove('midiaoculto')}
+ }
+ const acoesAnatomia={
+  ampliar:()=>{if(anatUrl)abrirFoto(anatUrl)},
+  trocar:()=>q('.anatomiafile').click(),
+  remover:async()=>{if(!confirm('Remover esta imagem anatômica? A carga, o histórico e as outras fotos serão preservados.'))return;try{await excluirFoto(anatomiaId);atualizarAnatomia(null);anatAviso.textContent='Imagem removida.'}catch(err){anatAviso.textContent='Falha ao remover: '+err.message}}
+ };
+ anatPreview.onclick=()=>{if(anatUrl)abrirMenuMidia('anatomia',acoesAnatomia)};
+ obterFoto(anatomiaId).then(blob=>{if(d.isConnected&&blob)atualizarAnatomia(blob)}).catch(()=>{if(d.isConnected)anatAviso.textContent='Não foi possível ler esta imagem.'});
+ q('.anatomiafile').onchange=async ev=>{
+  const file=ev.target.files?.[0];if(!file)return;
+  anatAviso.textContent='Salvando imagem...';
+  try{const blob=validarImagemAnatomica(file);const guardado=await guardarFoto(anatomiaId,blob);if(d.isConnected)atualizarAnatomia(guardado);anatAviso.textContent=midiaSomenteLocal?'✓ Imagem salva. Lembre-se do backup.':'✓ Imagem salva.'}
+  catch(err){anatAviso.textContent='Não foi possível salvar: '+err.message}
+  ev.target.value='';
+ };
+ const fotoId='foto-'+id, videoId='video-'+id, preview=q('.fotopreview'), aviso=q('.fotoaviso');
+ const fotobotoes=q('.fotobotoes');let previewUrl=null,videoUrl=null;
+ function atualizarPreview(blob){
+  if(previewUrl)URL.revokeObjectURL(previewUrl);
+  previewUrl=blob?URL.createObjectURL(blob):null;
+  if(previewUrl){preview.src=previewUrl;preview.style.display='block';fotobotoes.classList.add('midiaoculto')}
+  else{preview.removeAttribute('src');preview.style.display='none';fotobotoes.classList.remove('midiaoculto')}
+ }
+ const acoesFoto={
+  ampliar:()=>{if(previewUrl)abrirFoto(previewUrl)},
+  trocar:()=>q('.fotofile').click(),
+  remover:async()=>{if(!confirm('Remover a foto deste exercício?'))return;try{await excluirFoto(fotoId);atualizarPreview(null);aviso.textContent=''}catch(err){aviso.textContent='Não foi possível remover: '+err.message}}
+ };
+ preview.onclick=()=>{if(previewUrl)abrirMenuMidia('foto',acoesFoto)};
+ obterFoto(fotoId).then(blob=>{if(d.isConnected&&blob)atualizarPreview(blob)}).catch(()=>{if(d.isConnected)aviso.textContent='Não foi possível carregar a foto salva.'});
+ async function selecionarFoto(event){
+  const file=event.target.files?.[0];if(!file)return;
+  aviso.textContent='Salvando foto...';
+  try{const blob=await reduzirFoto(file);await guardarFoto(fotoId,blob);if(d.isConnected)atualizarPreview(blob);aviso.textContent=''}
+  catch(err){aviso.textContent='Não foi possível salvar: '+err.message}
+  event.target.value='';
+ }
+ q('.fotofile').addEventListener('change',selecionarFoto);
+ q('.fotocamera').addEventListener('change',selecionarFoto);
+ const videoInput=q('.video'),videoadd=q('.videoadd'),videohost=q('.videohost');
+ function atualizarVideo(blob){
+  if(videoUrl)URL.revokeObjectURL(videoUrl);
+  videoUrl=blob?URL.createObjectURL(blob):null;
+  videohost.replaceChildren();videoadd.classList.toggle('midiaoculto',!!blob);
+  if(!blob)return;
+  const wrap=document.createElement('div');wrap.className='midiavisual';
+  const v=document.createElement('video');v.controls=true;v.preload='metadata';v.playsInline=true;v.src=videoUrl;
+  const op=document.createElement('button');op.className='midiaopcoes';op.textContent='⋯';op.type='button';op.title='Gerenciar vídeo';op.setAttribute('aria-label','Opções do vídeo');
+  const menu=()=>abrirMenuMidia('video',{trocar:()=>videoInput.click(),remover:async()=>{if(!confirm('Remover o vídeo deste exercício?'))return;try{await excluirFoto(videoId);atualizarVideo(null)}catch(err){alert('Não foi possível remover: '+err.message)}}});
+  op.onclick=menu;
+  // No vídeo, o toque normal controla a reprodução; o toque prolongado abre as opções.
+  let pressTimer=null,pressAt=0;
+  v.addEventListener('touchstart',()=>{pressAt=Date.now();pressTimer=setTimeout(()=>{v.pause();menu();pressTimer=null},650)},{passive:true});
+  for(const ev of ['touchend','touchcancel','touchmove'])v.addEventListener(ev,()=>{clearTimeout(pressTimer);pressTimer=null},{passive:true});
+  v.addEventListener('contextmenu',ev=>{ev.preventDefault();menu()});
+  wrap.append(v,op);videohost.appendChild(wrap);
+ }
+ videoInput.onchange=async ev=>{
+  const file=ev.target.files?.[0];if(!file)return;
+  try{await guardarFoto(videoId,file);if(d.isConnected)atualizarVideo(file)}
+  catch(err){alert('Não foi possível salvar o vídeo. Tente um arquivo menor ou libere espaço no dispositivo. '+err.message)}
+  ev.target.value='';
+ };
+ obterFoto(videoId).then(blob=>{if(d.isConnected&&blob)atualizarVideo(blob)}).catch(()=>{});
+ return d;
+}
+
+// As mídias pertencem exclusivamente aos exercícios; o salvamento do treino não replica os registros para outros dias.
+// Mídias são armazenadas por posição (dia/grupo/exercício). Quando algo é
+// excluído, deslocamos as mídias dos itens seguintes antes de mudar a lista.
+// Isso impede que a foto do aparelho A apareça no exercício B.
+async function deslocarMidias(di, inicioGrupo, indiceExcluido){
+ const movimentos=[];
+ const grupos=dados[di].grupos;
+ if(indiceExcluido===null){
+  for(let gi=inicioGrupo+1;gi<grupos.length;gi++)for(let ei=0;ei<grupos[gi].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])movimentos.push({origem:`${tipo}-${di}-${gi}-${ei}`,destino:`${tipo}-${di}-${gi-1}-${ei}`});
+ }else{
+  for(let ei=indiceExcluido+1;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])movimentos.push({origem:`${tipo}-${di}-${inicioGrupo}-${ei}`,destino:`${tipo}-${di}-${inicioGrupo}-${ei-1}`});
+ }
+ const ids=new Set(movimentos.flatMap(x=>[x.origem,x.destino]));
+ if(indiceExcluido===null){for(let ei=0;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])ids.add(`${tipo}-${di}-${inicioGrupo}-${ei}`)}
+ else for(const tipo of ['foto','video','anatomia'])ids.add(`${tipo}-${di}-${inicioGrupo}-${indiceExcluido}`);
+ const conteudo=new Map();
+ for(const id of ids)conteudo.set(id,await obterFoto(id));
+ for(const id of ids)await excluirFoto(id);
+ for(const m of movimentos){const blob=conteudo.get(m.origem);if(blob)await guardarFoto(m.destino,blob)}
+}
+// Biblioteca independente do dia: permite deslocar um músculo sem perder sua ficha.
+function lerBiblioteca(){try{return JSON.parse(localStorage.getItem(LIBKEY))||{}}catch{return {}}}
+function salvarBiblioteca(b){localStorage.setItem(LIBKEY,JSON.stringify(b))}
+function cloneGrupo(g){const copia=JSON.parse(JSON.stringify(g));copia.aberto=true;copia.ex=(copia.ex||[]).map(e=>{e.sets=(e.sets||[]).map(set=>({...set,ok:false}));e.sessaoData=dataLocal();return e});return copia}
+function chaveMidiaGrupo(nome,tipo,ei){return 'biblioteca-'+tipo+'-'+encodeURIComponent(nomeGrupo(nome))+'-'+ei}
+async function guardarModelo(g,di,gi){
+ const b=lerBiblioteca(),ch=nomeGrupo(g.nome);
+ const anterior=b[ch];b[ch]={grupo:cloneGrupo(g),quantidade:g.ex.length,atualizadoEm:new Date().toISOString()};
+ // Primeiro captura todos os blobs; somente depois substitui a referência.
+ try{
+  const blobs=[];
+  for(let ei=0;ei<g.ex.length;ei++)for(const tipo of ['foto','video','anatomia'])blobs.push([chaveMidiaGrupo(g.nome,tipo,ei),await obterFoto(`${tipo}-${di}-${gi}-${ei}`)]);
+  for(const [key,blob] of blobs){if(blob)await guardarFoto(key,blob);else await excluirFoto(key)}
+  for(let ei=g.ex.length;ei<(anterior?.quantidade||0);ei++)for(const tipo of ['foto','video','anatomia'])await excluirFoto(chaveMidiaGrupo(g.nome,tipo,ei));
+ }catch(err){console.warn('Não foi possível atualizar todas as mídias da biblioteca',err)}
+ salvarBiblioteca(b);
+}
+function localizarGrupo(nome,excDi=-1,excGi=-1){
+ const key=nomeGrupo(nome);for(let di=0;di<dados.length;di++)for(let gi=0;gi<dados[di].grupos.length;gi++){
+  if(di===excDi&&gi===excGi)continue;
+  const g=dados[di].grupos[gi];if(nomeGrupo(g.nome)===key)return {di,gi,grupo:g};
+ }return null;
+}
+async function obterModelo(nome,excDi=-1,excGi=-1){
+ const b=lerBiblioteca(),registro=b[nomeGrupo(nome)];
+ if(registro)return {grupo:cloneGrupo(registro.grupo),fromLib:true,nome};
+ const found=localizarGrupo(nome,excDi,excGi);
+ if(found)return {grupo:cloneGrupo(found.grupo),fromLib:false,di:found.di,gi:found.gi,nome};
+ return {grupo:{nome,aberto:true,ex:[]},fromLib:false,nome};
+}
+async function aplicarModelo(di,gi,modelo){
+ const anterior=dados[di].grupos[gi];
+ const tarefas=[];const novo=modelo.grupo;
+ const total=Math.max(anterior.ex.length,novo.ex.length);
+ // A leitura é anterior à escrita para não sobrescrever mídias da origem.
+ for(let ei=0;ei<total;ei++)for(const tipo of ['foto','video','anatomia']){
+  const dst=`${tipo}-${di}-${gi}-${ei}`;
+  const src=ei>=novo.ex.length?null:modelo.fromLib?chaveMidiaGrupo(modelo.nome,tipo,ei):modelo.di!==undefined?`${tipo}-${modelo.di}-${modelo.gi}-${ei}`:null;
+  tarefas.push({dst,blob:src?await obterFoto(src):null});
+ }
+ for(const t of tarefas){if(t.blob)await guardarFoto(t.dst,t.blob);else await excluirFoto(t.dst)}
+ dados[di].grupos[gi]=novo;salvar();render();
+}
+async function editarGrupo(di,gi){
+ const atual=dados[di].grupos[gi];
+ const disponiveis=new Map();
+ for(const dia of dados)for(const g of dia.grupos)disponiveis.set(nomeGrupo(g.nome),g.nome);
+ for(const item of Object.values(lerBiblioteca()))if(item?.grupo?.nome)disponiveis.set(nomeGrupo(item.grupo.nome),item.grupo.nome);
+ const nomes=[...disponiveis.values()].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ const sugestao='Escolha o grupo muscular pelo número ou escreva outro nome:\n\n'+nomes.map((n,i)=>`${i+1}. ${n}`).join('\n');
+ const resposta=prompt(sugestao,atual.nome);if(resposta===null)return;
+ const entrada=resposta.trim();if(!entrada)return;
+ const numero=/^\d+$/.test(entrada)?Number(entrada):0;
+ const nome=(numero>=1&&numero<=nomes.length?nomes[numero-1]:entrada).trim();
+ if(nomeGrupo(nome)===nomeGrupo(atual.nome))return;
+ if(dados[di].grupos.some((g,i)=>i!==gi&&nomeGrupo(g.nome)===nomeGrupo(nome))){alert('Este grupo já está neste dia.');return}
+ try{
+  // Salva o músculo que está saindo antes de ocupar a vaga com outro.
+  await guardarModelo(atual,di,gi);
+  const modelo=await obterModelo(nome,di,gi);
+  await aplicarModelo(di,gi,modelo);
+ }catch(err){alert('Não foi possível trocar o grupo com segurança: '+err.message)}
+}
+async function removerExercicio(di,gi,ei){
+ const grupo=dados[di].grupos[gi],nome=grupo.ex[ei].nome;
+ if(!confirm(`Excluir o aparelho/exercício “${nome}” de ${grupo.nome}?`))return;
+ try{await deslocarMidias(di,gi,ei);grupo.ex.splice(ei,1);salvar();render()}
+ catch(err){alert('Não foi possível reorganizar as mídias com segurança. Nenhum exercício foi excluído. '+err.message)}
+}
+async function removerGrupo(di,gi){
+ const grupo=dados[di].grupos[gi];
+ if(!confirm(`Excluir o grupo “${grupo.nome}” e todos os seus exercícios deste dia?`))return;
+ try{await deslocarMidias(di,gi,null);dados[di].grupos.splice(gi,1);salvar();render()}
+ catch(err){alert('Não foi possível reorganizar as mídias com segurança. O grupo não foi excluído. '+err.message)}
+}
+async function adicionarGrupo(di){
+ const nome=prompt('Nome do novo grupo muscular (ex.: Abdômen, Glúteos):');
+ if(!nome||!nome.trim())return;
+ if(dados[di].grupos.some(g=>nomeGrupo(g.nome)===nomeGrupo(nome))){alert('Este grupo já existe neste dia. Abra-o e adicione aparelhos.');return}
+ try{const modelo=await obterModelo(nome.trim()); const gi=dados[di].grupos.length; dados[di].grupos.push({nome:nome.trim(),aberto:true,ex:[]});await aplicarModelo(di,gi,modelo)}catch(err){alert('Erro ao adicionar grupo: '+err.message)}
+}
+function adicionarExercicio(di,gi){
+ const nome=prompt('Nome do aparelho ou exercício:');if(!nome||!nome.trim())return;
+ dados[di].grupos[gi].ex.push(ex(nome.trim(),3,'8-12',90));salvar();render();
+}
+function nomeGrupo(nome){return String(nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()}
+async function salvarTreinoDia(di,botao,msg){
+ botao.disabled=true;
+ try{salvar();msg.textContent='✓ Treino salvo. Os outros treinos mantêm seus exercícios e cargas independentes.'}
+ catch(err){msg.textContent='Erro ao salvar: '+err.message}
+ finally{botao.disabled=false}
+}
+
+// A aba escolhida não altera o próximo treino do ciclo.
+let vistaTreino=posicaoAtual();
+function render(){
+ prepararSessoes();
+ const app=document.getElementById('app');app.replaceChildren();
+ if(vistaTreino>=dados.length||vistaTreino<0)vistaTreino=posicaoAtual();
+ const tabs=document.getElementById('treinoTabs');tabs.replaceChildren();
+ dados.forEach((dia,di)=>{
+   const bot=document.createElement('button');bot.type='button';bot.className='treino-tab'+(di===vistaTreino?' selecionado':'')+(di===posicaoAtual()?' atual':'');
+   bot.textContent=dia.sigla||String(di+1);bot.title=dia.dia;bot.setAttribute('aria-pressed',String(di===vistaTreino));
+   bot.onclick=()=>{vistaTreino=di;render();document.getElementById('app').scrollIntoView({behavior:'smooth',block:'start'})};tabs.appendChild(bot);
+ });
+ const dia=dados[vistaTreino];if(!dia){atualizarPainelCiclo();return}
+ const titulo=document.createElement('div');titulo.className='day-heading';
+ const feitas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.sets.filter(s=>s.ok).length,0),0);
+ const previstas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.series,0),0);
+ titulo.innerHTML=`<div><h2>Ficha ${esc(dia.sigla||vistaTreino+1)}</h2><p>${esc(dia.grupos.map(g=>g.nome).join(' · '))}</p></div><span class="day-counter">${feitas}/${previstas} séries</span>`;
+ app.appendChild(titulo);
+ const c=document.createElement('section');c.className='card';
+ dia.grupos.forEach((g,gi)=>{
+   const gr=document.createElement('div');gr.className='group';
+   const gh=document.createElement('button');gh.className='head';gh.type='button';
+   gh.innerHTML=`<span>${esc(g.nome)}<div class="grupo-sub">${g.ex.length} exercícios</div></span><span class="caret">${g.aberto?'⌃':'⌄'}</span>`;
+   gh.setAttribute('aria-expanded',String(!!g.aberto));
+   gh.onclick=()=>{g.aberto=!g.aberto;salvar();render()};gr.appendChild(gh);
+   if(g.aberto){
+    const gb=document.createElement('div');gb.className='body';
+    g.ex.forEach((e,ei)=>gb.appendChild(renderEx(e,vistaTreino,gi,ei)));
+    const gerenciar=document.createElement('details');gerenciar.className='group-tools';
+    gerenciar.innerHTML='<summary>Gerenciar este grupo</summary>';
+    const controls=document.createElement('div');controls.className='editbar';
+    const edit=document.createElement('button');edit.className='editgroup';edit.type='button';edit.textContent='Trocar grupo';edit.onclick=()=>editarGrupo(vistaTreino,gi);
+    const remove=document.createElement('button');remove.type='button';remove.className='removeitem';remove.textContent='Excluir grupo';remove.onclick=()=>removerGrupo(vistaTreino,gi);
+    const addex=document.createElement('button');addex.type='button';addex.className='additem';addex.textContent='+ Exercício';addex.onclick=()=>adicionarExercicio(vistaTreino,gi);
+    controls.append(edit,remove);gerenciar.append(controls,addex);gb.appendChild(gerenciar);gr.appendChild(gb);
+   }
+   c.appendChild(gr);
+ });
+ const add=document.createElement('details');add.className='day-edit-tools';add.innerHTML='<summary>Editar esta ficha</summary>';
+ const addgroup=document.createElement('button');addgroup.className='additem';addgroup.type='button';addgroup.textContent='+ Adicionar grupo muscular';addgroup.onclick=()=>adicionarGrupo(vistaTreino);add.append(addgroup);c.appendChild(add);
+ app.appendChild(c);
+ renderRelogios();atualizarPainelCiclo();
+}
+// Plano revisado: preserva registros anteriores, mídias e o histórico de fichas.
+function posicaoAtual(){const n=Number(localStorage.getItem(CICLO_KEY));return Number.isInteger(n)&&n>=0&&n<dados.length?n:0}
+function atualizarPainelCiclo(){
+ const p=posicaoAtual(),d=dados[p];
+ document.getElementById('proximoTitulo').textContent=d?.dia||'Treino A';
+ document.getElementById('proximoDescricao').textContent=`${p+1} de ${dados.length} · Volte de onde parou`;
+ document.getElementById('abrirProximo').hidden=vistaTreino===p;
+}
+document.getElementById('abrirProximo').onclick=()=>{
+ vistaTreino=posicaoAtual();render();document.getElementById('app').scrollIntoView({behavior:'smooth',block:'start'});
+};
+document.getElementById('avancarTreino').onclick=()=>{
+ const atual=posicaoAtual(),prox=(atual+1)%dados.length;
+ localStorage.setItem(CICLO_KEY,String(prox));vistaTreino=prox;
+ salvar();render();window.scrollTo({top:0,behavior:'smooth'});
+};
+document.getElementById('abrirAjustes').onclick=()=>{
+ const el=document.getElementById('painelAjustes');el.hidden=!el.hidden;
+ document.getElementById('abrirAjustes').setAttribute('aria-expanded',String(!el.hidden));
+ document.getElementById('abrirAjustes').textContent=el.hidden?'⚙ Ajustes':'✕ Fechar';
+};
+function grupoExercicios(){const out=[];for(let di=0;di<dados.length;di++)for(let gi=0;gi<dados[di].grupos.length;gi++)for(let ei=0;ei<dados[di].grupos[gi].ex.length;ei++)out.push({di,gi,ei,grupo:dados[di].grupos[gi].nome,dia:dados[di].dia,ex:dados[di].grupos[gi].ex[ei]});return out}
+const APELIDOS={
+ 'supino reto com halteres':['supino reto na maquina ou halteres','supino reto com halter','supino reto'],
+ 'supino inclinado na maquina convergente':['supino inclinado na maquina'],
+ 'desenvolvimento de ombros na maquina':['desenvolvimento na maquina'],
+ 'elevacao lateral unilateral na polia':['elevacao lateral na polia'],
+ 'triceps frances acima da cabeca na polia':['triceps frances na polia'],
+ 'puxada frontal na polia com pegada neutra':['puxada frontal na polia'],
+ 'puxada frontal na polia com pegada pronada':['puxada frontal na polia'],
+ 'rosca martelo com halteres':['rosca martelo'],
+ 'rosca direta na polia baixa com barra w':['rosca direta na polia'],
+ 'cadeira flexora sentada':['mesa ou cadeira flexora','cadeira flexora'],
+ 'elevacao pelvica no smith':['elevacao pelvica na maquina'],
+ 'panturrilha sentado':['panturrilha sentado ou em pe'],
+ 'panturrilha em pe na maquina':['panturrilha sentado ou em pe'],
+ 'crossover na polia alta':['crossover na polia'],
+ 'crunch abdominal na polia':['abdominal na maquina ou crunch'],
+ 'rosca concentrada com halter':['rosca concentrada'],
+ 'remada serrote com halter':['remada serrote com halteres','remada serrote'],
+};
+function numeroDiaAnterior(dia,sigla){
+ const n=normalizarTexto(dia);
+ if(n.includes('treino '+sigla.toLowerCase()+' ')||n.includes('treino '+sigla.toLowerCase()+'—'))return true;
+ return ({A:'segunda',B:'terca',C:'quarta',D:'sexta',E:'sabado'}[sigla]||'impossivel')===n.split('-')[0].trim();
+}
+function localizarExercicioAnterior(nome,grupo,sigla,antigos){
+ const n=normalizarTexto(nome),nomes=[n,...(APELIDOS[n]||[])];
+ const candidatos=antigos.filter(it=>nomes.includes(normalizarTexto(it.ex.nome)));
+ if(!candidatos.length)return null;
+ candidatos.sort((a,b)=>{
+  const valor=it=> (numeroDiaAnterior(it.dia,sigla)?10:0) + (normalizarTexto(it.grupo)===normalizarTexto(grupo)?4:0) + (normalizarTexto(it.ex.nome)===n?2:0);
+  return valor(b)-valor(a);
+ });
+ return candidatos[0];
+}
+function unificarExercicio(novo,antigo){
+ if(!antigo)return novo;
+ // Preserva valores registrados sem confundir o padrão de séries e repetições do novo plano.
+ const e=JSON.parse(JSON.stringify(novo)),a=antigo.ex;
+ if(a.carga!==undefined&&a.carga!=='')e.carga=a.carga;
+ // Observações antigas continuam acessíveis, juntamente com a orientação nova.
+ if(a.obs && !e.obs.includes(a.obs))e.obs=e.obs?e.obs+' | Seu registro anterior: '+a.obs:a.obs;
+ if(a.video!==undefined&&a.video!==null)e.video=a.video;
+ e.sets=Array.from({length:e.series},(_,i)=>({kg:a.sets?.[i]?.kg??'',reps:a.sets?.[i]?.reps??'',ok:false}));
+ e.sessaoData=dataLocal();return e;
+}
+async function atualizarMidiasPlano(antigos,relacoes,token){
+ const todas=[];
+ for(const it of antigos)for(const tipo of ['foto','video','anatomia']){
+  const id=`${tipo}-${it.di}-${it.gi}-${it.ei}`;const blob=await obterFoto(id);
+  if(blob)todas.push({id,blob});
+ }
+ const mapa=new Map(todas.map(x=>[x.id,x.blob]));
+ const transfer=[];
+ for(const novo of relacoes){
+  if(!novo.antigo)continue;
+  for(const tipo of ['foto','video','anatomia']){
+   const origem=`${tipo}-${novo.antigo.di}-${novo.antigo.gi}-${novo.antigo.ei}`;
+   const blob=mapa.get(origem);
+   if(blob)transfer.push({id:`${tipo}-${novo.di}-${novo.gi}-${novo.ei}`,blob});
+  }
+ }
+ if(midiaSomenteLocal)throw new Error('Antes de alterar a ficha neste modo local, exporte o backup JSON e restaure em uma versão HTTPS. As mídias existentes não foram movidas.');
+ const db=await bancoFotos();
+ await new Promise((resolve,reject)=>{
+  const tx=db.transaction(FOTO_STORE,'readwrite'),store=tx.objectStore(FOTO_STORE);
+  // Arquivo imutável de toda mídia antiga, incluindo exercícios removidos da ficha.
+  for(const {id,blob} of todas)store.put(blob,`backup-plano-${token}-${id}`);
+  for(const {id} of todas)store.delete(id);
+  for(const {id,blob} of transfer)store.put(blob,id);
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Falha ao migrar mídias'));tx.onabort=()=>reject(tx.error||new Error('Transação cancelada'));
+ });
+ return {arquivadas:todas.length,transferidas:transfer.length};
+}
+function exibirHistorico(){
+ const host=document.getElementById('historicoConteudo');host.replaceChildren();
+ const keys=Object.keys(localStorage).filter(k=>k.startsWith('backup_treino_antes_plano_')).sort().reverse();
+ if(!keys.length){host.textContent='Nenhuma ficha anterior arquivada ainda. Ao aplicar uma nova ficha, ela aparecerá aqui.';return}
+ for(const k of keys){
+  let anterior;try{anterior=JSON.parse(localStorage.getItem(k))}catch{continue}
+  const info=document.createElement('div');info.className='hist-item';
+  const total=(anterior||[]).reduce((n,d)=>n+(d.grupos||[]).reduce((x,g)=>x+(g.ex||[]).length,0),0);
+  const cab=document.createElement('div');cab.textContent=`${k.replace('backup_treino_antes_plano_','')} · ${anterior.length} treinos · ${total} exercícios`;
+  const bot=document.createElement('button');bot.type='button';bot.className='alt';bot.textContent='Ver exercícios antigos';
+  const detalhes=document.createElement('pre');detalhes.className='hist-lista';detalhes.hidden=true;
+  bot.onclick=()=>{
+   detalhes.hidden=!detalhes.hidden;
+   if(!detalhes.hidden){
+    const linhas=[];
+    for(const dia of anterior){
+     linhas.push(dia.dia);
+     for(const grupo of dia.grupos){
+      linhas.push('  '+grupo.nome);
+      for(const e of grupo.ex){
+       const textoSeries=(e.sets||[]).map(x=>(x.kg||'—')+' kg / '+(x.reps||'—')+' reps').join('; ');
+       linhas.push('   • '+e.nome+' | '+e.series+' × '+e.reps+' | '+(e.carga||'—')+' kg'+(textoSeries?' | '+textoSeries:''));
+      }
+     }
+     linhas.push('');
+    }
+    detalhes.textContent=linhas.join('\n');
+   }
+  };
+  info.append(cab,bot,detalhes);host.append(info);
+ }
+}
+async function aplicarPlanoRecomendado(){
+ if(localStorage.getItem(PLANO_KEY)===PLANO_ID && dados.length===padrao.length && dados.every((d,i)=>d.sigla===padrao[i].sigla)){
+  document.getElementById('planoMensagem').textContent='✓ A ficha nova já está aplicada. Suas alterações e cargas estão preservadas.';
+  return;
+ }
+ if(!confirm('Aplicar o novo ciclo A → B → D → E → C?\n\nA ficha anterior ficará arquivada, inclusive cargas, repetições, observações, imagens anatômicas, fotos e vídeos. Exercícios equivalentes terão seus registros reaproveitados. Recomendamos também EXPORTAR o backup antes da atualização.'))return;
+ const btn=document.getElementById('aplicarPlano'),msg=document.getElementById('planoMensagem');btn.disabled=true;msg.textContent='Criando arquivo de recuperação e identificando exercícios equivalentes...';
+ try{
+  const token=new Date().toISOString().replace(/[:.]/g,'-'),anteriores=grupoExercicios();
+  const novo=JSON.parse(JSON.stringify(padrao)),relacoes=[];
+  for(let di=0;di<novo.length;di++)for(let gi=0;gi<novo[di].grupos.length;gi++)for(let ei=0;ei<novo[di].grupos[gi].ex.length;ei++){
+   const g=novo[di].grupos[gi],e=g.ex[ei],antigo=localizarExercicioAnterior(e.nome,g.nome,novo[di].sigla,anteriores);
+   g.ex[ei]=unificarExercicio(e,antigo);
+   relacoes.push({di,gi,ei,antigo});
+  }
+  // Não apaga os cadastros anteriores. Guarda uma cópia de toda a ficha original.
+  localStorage.setItem('backup_treino_antes_plano_'+token,JSON.stringify(dados));
+  localStorage.setItem('backup_biblioteca_antes_plano_'+token,localStorage.getItem(LIBKEY)||'{}');
+  msg.textContent='Arquivando imagens anatômicas, fotos e vídeos sem perder correspondência entre exercícios...';
+  const media=await atualizarMidiasPlano(anteriores,relacoes,token);
+  dados=novo;dados[0].aberto=true;localStorage.setItem(PLANO_KEY,PLANO_ID);localStorage.setItem(CICLO_KEY,'0');vistaTreino=0;
+  salvar();render();exibirHistorico();
+  msg.textContent=`✓ Ficha atualizada: 5 treinos, 41 exercícios, ${media.arquivadas} mídias antigas arquivadas e ${media.transferidas} reaproveitadas. Exporte também seu backup JSON.`;
+ }catch(err){msg.textContent='Atualização interrompida: '+err.message+'; seus registros anteriores continuam em backup.'}
+ finally{btn.disabled=false}
+}
+document.getElementById('aplicarPlano').addEventListener('click',aplicarPlanoRecomendado);
+
+
+// Formato portátil v1: todas as chaves desta aplicação e todos os arquivos do IndexedDB.
+// Nunca exporta dados de outros sites ou outros aplicativos.const BACKUP_FORMATO='meu-treino-backup', BACKUP_VERSAO=1;
+const $backupStatus=document.getElementById('backupStatus');
+const $backupExportar=document.getElementById('exportarBackup');
+const $backupImportar=document.getElementById('importarBackup');
+const $backupArquivo=document.getElementById('backupArquivo');
+let backupEmCurso=false;
+function statusBackup(m,erro=false){$backupStatus.textContent=m;$backupStatus.style.color=erro?'#fca5a5':'#86efac'}
+function bloquearBackup(sim){backupEmCurso=sim;$backupExportar.disabled=sim;$backupImportar.disabled=sim}
+function chavesDoTreino(){
+ const chaves=[KEY,LIBKEY,PLANO_KEY,CICLO_KEY];
+ for(let i=0;i<localStorage.length;i++){
+  const k=localStorage.key(i);
+  if(k && (k.startsWith('backup_treino_antes_plano_')||k.startsWith('backup_biblioteca_antes_plano_')))chaves.push(k);
+ }
+ return [...new Set(chaves)];
+}
+async function lerTodasAsMidias(){
+ const mapa=new Map();
+ if(!midiaSomenteLocal){
+  try{
+   const db=await bancoFotos();const lista=await new Promise((resolve,reject)=>{
+    const tx=db.transaction(FOTO_STORE,'readonly'),req=tx.objectStore(FOTO_STORE).openCursor(),items=[];
+    req.onsuccess=()=>{const c=req.result;if(c){items.push({id:c.key,blob:c.value});c.continue()}};
+    req.onerror=()=>reject(req.error);tx.oncomplete=()=>resolve(items);tx.onerror=()=>reject(tx.error)
+   });
+   for(const item of lista)mapa.set(item.id,item.blob);
+  }catch(err){ativarModoLocal(err)}
+ }
+ for(const k of chavesMidiaLocal()){
+  try{const v=localStorage.getItem(k);if(v)mapa.set(k.slice(FOTO_LOCAL_PREFIX.length),dataUrlEmBlob(v))}
+  catch(err){console.warn('Imagem local inválida ignorada no backup:',k,err)}
+ }
+ return [...mapa.entries()].map(([id,blob])=>({id,blob}));
+}
+function blobEmBase64(blob){return new Promise((resolve,reject)=>{
+ const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error||new Error('Erro ao ler mídia'));
+ reader.readAsDataURL(blob);
+});}
+function dataUrlEmBlob(s){
+ if(typeof s!=='string'||!/^data:[^,]*;base64,/.test(s))throw new Error('Mídia inválida no arquivo de backup');
+ const pos=s.indexOf(','),header=s.slice(5,pos),tipo=header.split(';')[0]||'application/octet-stream';
+ const bytes=atob(s.slice(pos+1)),parts=[];
+ // Partes menores reduzem a pressão de memória ao restaurar vídeos.
+ for(let i=0;i<bytes.length;i+=65536){const sub=bytes.slice(i,i+65536),a=new Uint8Array(sub.length);for(let j=0;j<sub.length;j++)a[j]=sub.charCodeAt(j);parts.push(a)}
+ return new Blob(parts,{type:tipo});
+}
+async function gerarObjetoBackup(){
+ const armazenamento={};for(const key of chavesDoTreino()){const val=localStorage.getItem(key);if(val!==null)armazenamento[key]=val}
+ const fotos=await lerTodasAsMidias(),midias=[];
+ let n=0;
+ for(const {id,blob} of fotos){
+  if(typeof id!=='string'||!(blob instanceof Blob))continue;
+  statusBackup(`Preparando mídias: ${++n}/${fotos.length}...`);
+  midias.push({id,conteudo:await blobEmBase64(blob)});
+ }
+ return {formato:BACKUP_FORMATO,versao:BACKUP_VERSAO,geradoEm:new Date().toISOString(),aplicativo:'Meu Treino de Hipertrofia',armazenamento,midias};
+}
+function baixarObjetoBackup(obj){
+ const arquivo=new Blob([JSON.stringify(obj)],{type:'application/json'});
+ const nome='backup-meu-treino-'+new Date().toISOString().slice(0,10)+'.json';
+ const url=URL.createObjectURL(arquivo),a=document.createElement('a');
+ a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),60000);
+ return {nome,tamanho:(arquivo.size/1024/1024).toFixed(1)};
+}
+async function exportarBackup(){
+ if(backupEmCurso)return;
+ bloquearBackup(true);
+ try{
+  statusBackup('Reunindo registros e mídias...');
+  const obj=await gerarObjetoBackup();
+  const info=baixarObjetoBackup(obj);
+  statusBackup(`✓ Backup preparado: ${info.nome} (${info.tamanho} MB; ${obj.midias.length} mídias). Confira na pasta Downloads antes de apagar versões antigas.`);
+ }catch(err){statusBackup('Não foi possível exportar: '+err.message,true)}
+ finally{bloquearBackup(false)}
+}
+function conferirObjetoBackup(obj){
+ if(!obj||obj.formato!==BACKUP_FORMATO||obj.versao!==BACKUP_VERSAO||!obj.armazenamento||typeof obj.armazenamento!=='object'||Array.isArray(obj.armazenamento)||!Array.isArray(obj.midias))throw new Error('Este arquivo não é um backup compatível do Meu Treino');
+ const raw=obj.armazenamento[KEY];
+ if(typeof raw!=='string')throw new Error('Backup sem os dados principais do treino');
+ const dias=JSON.parse(raw);
+ if(!Array.isArray(dias)||!dias.every(d=>d&&typeof d.dia==='string'&&Array.isArray(d.grupos)))throw new Error('A estrutura dos treinos no backup é inválida');
+ if(obj.armazenamento[LIBKEY]!==undefined){const b=JSON.parse(obj.armazenamento[LIBKEY]);if(!b||typeof b!=='object'||Array.isArray(b))throw new Error('Biblioteca muscular inválida')}
+ for(const [k,v] of Object.entries(obj.armazenamento))if(typeof v!=='string'||![KEY,LIBKEY,PLANO_KEY,CICLO_KEY].includes(k)&&!k.startsWith('backup_treino_antes_plano_')&&!k.startsWith('backup_biblioteca_antes_plano_'))throw new Error('Chave inesperada ou inválida no backup');
+ const ids=new Set();for(const m of obj.midias){if(!m||typeof m.id!=='string'||ids.has(m.id)||typeof m.conteudo!=='string'||!m.conteudo.startsWith('data:'))throw new Error('Mídia duplicada ou inválida');ids.add(m.id)}
+ return dias;
+}
+async function gravarMidiasBackup(midias){
+ if(!midiaSomenteLocal){
+  try{
+   const db=await bancoFotos();
+   await new Promise((resolve,reject)=>{
+    const tx=db.transaction(FOTO_STORE,'readwrite'),store=tx.objectStore(FOTO_STORE);
+    store.clear();for(const {id,blob} of midias)store.put(blob,id);
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Falha ao restaurar mídias'));
+    tx.onabort=()=>reject(tx.error||new Error('Restauração cancelada pelo navegador'));
+   });
+   for(const k of chavesMidiaLocal())localStorage.removeItem(k);
+   return;
+  }catch(err){ativarModoLocal(err)}
+ }
+ // No modo local não é possível restaurar vídeos ou bibliotecas gigantes.
+ // Validar e compactar tudo ANTES de apagar os arquivos antigos.
+ const preparados=[];
+ for(const {id,blob} of midias){
+  if(!blob.type.startsWith('image/'))throw new Error('Este backup contém vídeos: não é possível restaurá-los em content://. Abra o app por HTTPS. Nenhum registro foi substituído.');
+  const reduzido=await otimizarFotoLocal(blob,1100,.76);
+  preparados.push([FOTO_LOCAL_PREFIX+id,await blobEmBase64(reduzido)]);
+ }
+ const soma=preparados.reduce((s,[_k,v])=>s+v.length,0);
+ if(soma>4_000_000)throw new Error('O backup tem mais imagens do que este modo local comporta. Abra o aplicativo por HTTPS para restaurar todas as imagens. Nenhum registro foi substituído.');
+ const antes=new Map(chavesMidiaLocal().map(k=>[k,localStorage.getItem(k)]));
+ try{
+  for(const k of antes.keys())localStorage.removeItem(k);
+  for(const [k,v] of preparados)localStorage.setItem(k,v);
+ }catch(err){
+  for(const [k] of preparados)localStorage.removeItem(k);
+  for(const [k,v] of antes)try{localStorage.setItem(k,v)}catch(e){console.error('Restauração parcial da mídia antiga',e)}
+  throw new Error('Sem espaço para restaurar todas as imagens. Os registros da ficha não foram alterados. '+err.message);
+ }
+}
+async function restaurarBackup(file){
+ if(backupEmCurso||!file)return;
+ bloquearBackup(true);
+ try{
+  statusBackup('Lendo e verificando o arquivo...');
+  const obj=JSON.parse(await file.text()),novosDias=conferirObjetoBackup(obj);
+  const msg=`Este backup contém ${novosDias.length} dias de treino e ${obj.midias.length} arquivos de mídia.\n\nA restauração SUBSTITUI os treinos, biblioteca e mídias que estão neste navegador.\n\nVocê já baixou um backup dos seus dados atuais?`;
+  if(!confirm(msg)){statusBackup('Restauração cancelada. Nenhum dado foi alterado.');return}
+  // Prepara e valida as mídias antes de modificar o armazenamento existente.
+  const midias=[];let n=0;
+  for(const m of obj.midias){statusBackup(`Verificando mídias: ${++n}/${obj.midias.length}...`);midias.push({id:m.id,blob:dataUrlEmBlob(m.conteudo)})}
+  // Salva uma cópia de recuperação das informações textuais no navegador.
+  const snapshot={};for(const k of chavesDoTreino())snapshot[k]=localStorage.getItem(k);
+  const marcador='backup_antes_restauracao_'+new Date().toISOString().replace(/[:.]/g,'-');
+  // A transação de mídia é única: se falhar, o IndexedDB não aplica alteração parcial.
+  statusBackup('Restaurando fotos, vídeos e registros...');
+  await gravarMidiasBackup(midias);
+  try{
+   // Substitui exclusivamente as chaves pertencentes a este aplicativo.
+   for(const k of chavesDoTreino())localStorage.removeItem(k);
+   for(const [k,v] of Object.entries(obj.armazenamento))localStorage.setItem(k,v);
+   // Backup textual de emergência após importação bem-sucedida.
+   localStorage.setItem(marcador,JSON.stringify({anterior:snapshot,geradoEm:new Date().toISOString()}));
+  }catch(err){
+   // Mesmo se localStorage estiver cheio, tenta recuperar os dados textuais anteriores.
+   try{for(const k of chavesDoTreino())localStorage.removeItem(k);for(const [k,v] of Object.entries(snapshot))if(v!==null)localStorage.setItem(k,v)}catch(e){console.error('Falha ao restaurar dados locais',e)}
+   throw new Error('Não foi possível salvar os registros. O backup original continua disponível para tentar novamente. '+err.message);
+  }
+  dados=novosDias;vistaTreino=posicaoAtual();prepararSessoes();zerar();render();exibirHistorico();
+  statusBackup(`✓ Restauração concluída: ${novosDias.length} dias e ${midias.length} mídias. Seus dados anteriores em texto foram preservados no navegador como recuperação de emergência.`);
+ }catch(err){statusBackup('Restauração não concluída: '+err.message,true)}
+ finally{bloquearBackup(false);$backupArquivo.value=''}
+}
+$backupExportar.addEventListener('click',exportarBackup);
+$backupImportar.addEventListener('click',()=>$backupArquivo.click());
+$backupArquivo.addEventListener('change',()=>restaurarBackup($backupArquivo.files[0]));
+
+render();exibirHistorico();
+// Verificação antecipada para mostrar o aviso antes da primeira imagem.
+bancoFotos().catch(()=>{});
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="./drive-sync.js"></script>
+</body>
+</html>

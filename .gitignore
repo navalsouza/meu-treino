@@ -1,0 +1,11 @@
+# Treinos, backups e arquivos privados
+backup-*.json
+*backup*.json
+estado-meu-treino.json
+midia-*.bin
+.env
+.env.*
+*.key
+*.pem
+*.p12
+node_modules/
