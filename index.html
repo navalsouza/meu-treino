@@ -172,6 +172,21 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 #statusCloudTopo{font-size:11px;color:#93c5fd;white-space:nowrap;margin-top:4px}
 #statusCloudTopo[data-level="success"]{color:#86efac}
 @media (max-width:420px){.sync-actions{grid-template-columns:1fr}}
+
+/* Alternativas por deslize, sem poluir a ficha principal. */
+.variantes{margin:12px 0 4px;background:#121f34;border:1px solid #345072;border-radius:13px;padding:11px}
+.variantes-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:#aabedb}
+.variantes-top strong{color:#e5efff}
+.variantes-nav{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;gap:7px;align-items:center;margin:8px 0}
+.variantes-nav button{background:#263750;border:1px solid #4b607b;min-height:42px;padding:5px}
+.variantes-card{text-align:center;touch-action:pan-y;user-select:none;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.variantes-card strong{font-size:14px;line-height:1.25}.variantes-card .equip{font-size:12px;color:#a6c8ff}
+.variantes-card .tip{font-size:11px;color:#a9b7cb}
+.variantes-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.variantes-dots{font-size:12px;letter-spacing:2px;color:#7f91ad}
+.variantes-use{background:#2463dd;font-size:12px;font-weight:750;padding:8px 12px}
+.variantes-use:disabled{background:#205348;color:#c9ffdf;opacity:1}
+.variantes-current{font-size:11px;color:#82e7b3;margin-top:4px}
 </style>
 </head>
 <body>
@@ -201,7 +216,7 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 
  <div class="settings-head">Configurações e segurança <span class="small">Alterações são salvas automaticamente</span></div>
  <section class="backup-panel" aria-label="Backup dos seus treinos">
-  <h2>Backup dos dados <span class="small" style="color:#86efac;font-weight:700;font-size:12px">v2.0.1 · correção ativa</span></h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
+  <h2>Backup dos dados <span class="small" style="color:#86efac;font-size:12px">v2.1 · alternativas por deslize</span></h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
   <div class="backup-commands"><button id="exportarBackup" type="button">↓ Exportar backup</button><button id="importarBackup" type="button" class="alt">↑ Restaurar</button></div>
   <input id="backupArquivo" type="file" accept=".json,application/json" hidden><div id="backupStatus" class="backup-status" role="status" aria-live="polite"></div>
   <p class="small">A restauração substitui os registros atuais. Salve uma cópia primeiro.</p>
@@ -319,6 +334,7 @@ function prepararSessoes(){
   // séries concluídas antigas como se pertencessem ao treino de hoje.
   if(e.sessaoData!==hoje){
    for(const s of e.sets){if(s.ok){s.ok=false;alterado=true}}
+   for(const rec of Object.values(e.registrosOpcoes||{}))for(const s of rec.sets||[]){if(s.ok){s.ok=false;alterado=true}}
    e.sessaoData=hoje;alterado=true;
   }
  }
@@ -512,7 +528,7 @@ function musculosDoExercicio(nome,grupo){
  return {principais:[...new Set(principais)],indiretos:[...new Set(indiretos.filter(x=>!principais.includes(x)))]};
 }
 function contribuicao(e,grupo){
- const m=musculosDoExercicio(e.nome,grupo),feito=(e.sets||[]).filter(s=>s.ok).length;
+ const m=musculosDoExercicio(opcoesExercicio(e)[indiceOpcao(e,opcoesExercicio(e))].nome,grupo),feito=(e.sets||[]).filter(s=>s.ok).length;
  const planejadas=Math.max(0,Number(e.series)||0),principais={},indiretos={},previsaoPrincipal={},previsaoIndireta={};
  for(const musculo of m.principais){principais[musculo]=feito;previsaoPrincipal[musculo]=planejadas}
  for(const musculo of m.indiretos){indiretos[musculo]=feito*.35;previsaoIndireta[musculo]=planejadas*.35}
@@ -537,7 +553,7 @@ function listaMusculos(res,tipo){
 }
 function htmlChips(arr,alt=false,vazio='Nenhum'){return (arr&&arr.length?arr:[vazio]).map(x=>`<span class="chip ${alt?'alt':''}">${esc(x)}</span>`).join('')}
 function htmlFocoExercicio(e,grupo){
- const m=musculosDoExercicio(e.nome,grupo);
+ const opts=opcoesExercicio(e),m=musculosDoExercicio(opts[indiceOpcao(e,opts)].nome,grupo);
  const principais=m.principais.map(x=>ROTULOS[x]);
  const indiretos=m.indiretos.map(x=>ROTULOS[x]);
  return `<div class="exercise-focus"><div class="row"><b>Foco principal:</b> ${esc(principais.join(', ')||grupo||'não definido')}</div><div class="row"><b>Participação auxiliar:</b> ${esc(indiretos.join(', ')||'nenhuma relevante')}</div></div>`;
@@ -556,15 +572,85 @@ function htmlResumoGrupo(exercicios,grupo){
  return `<div class="resumo-grupo"><h4>🎯 Resumo muscular do grupo · ${res.concluidas} séries concluídas</h4><div class="muscle-chip-wrap">${htmlChips(principais,false,'Nenhum músculo principal')}</div>${indiretos.length?`<div class="small">Auxiliares: ${esc(indiretos.join(', '))}</div>`:''}</div>`;
 }
 
+
+// O primeiro item corresponde sempre ao exercício original. As demais são opções práticas,
+// com foco muscular semelhante. O usuário escolhe o que realmente executou.
+const ALTERNATIVAS_TREINO={
+ 'supino reto com halteres':[['Supino reto na máquina','Máquina','Mais estabilidade'],['Supino reto com barra','Barra e anilhas','Carga progressiva'],['Supino reto no Smith','Smith','Trajetória guiada']],
+ 'supino inclinado na maquina convergente':[['Supino inclinado com halteres','Halteres','Amplitude livre'],['Supino inclinado com barra','Barra e anilhas','Banco inclinado'],['Supino inclinado no Smith','Smith','Trajetória guiada']],
+ 'crossover na polia alta':[['Voador na máquina','Máquina','Isolamento do peitoral'],['Crucifixo reto com halteres','Halteres','Controle na fase excêntrica'],['Crossover na polia média','Polia','Variação do ângulo']],
+ 'desenvolvimento de ombros na maquina':[['Desenvolvimento com halteres sentado','Halteres','Movimento livre'],['Desenvolvimento com barra sentado','Barra','Estabilidade do tronco'],['Desenvolvimento no Smith','Smith','Trajetória guiada']],
+ 'elevacao lateral unilateral na polia':[['Elevação lateral com halteres','Halteres','Fácil de encontrar'],['Elevação lateral na máquina','Máquina','Boa estabilidade'],['Elevação lateral bilateral na polia','Polia baixa','Duas mãos']],
+ 'crucifixo inverso na maquina':[['Crucifixo inverso na polia','Polias cruzadas','Deltoide posterior'],['Crucifixo inverso inclinado com halteres','Halteres','Banco inclinado'],['Crucifixo inverso unilateral na polia','Polia','Um braço por vez']],
+ 'triceps frances acima da cabeca na polia':[['Tríceps francês com halter','Halter','Acima da cabeça'],['Tríceps francês com barra W','Barra W','Acima da cabeça'],['Extensão de tríceps acima da cabeça unilateral na polia','Polia','Um braço']],
+ 'triceps na polia com corda':[['Tríceps na polia com barra reta','Polia + barra','Extensão de cotovelo'],['Tríceps na polia com barra V','Polia + barra V','Pegada neutra'],['Tríceps coice com halter','Halter','Alternativa livre']],
+ 'agachamento hack':[['Agachamento no Smith','Smith','Atenção à técnica'],['Agachamento goblet','Halter','Carga moderada'],['Agachamento com barra','Barra e anilhas','Exige mais estabilização']],
+ 'leg press 45°':[['Leg press horizontal','Máquina','Outra posição'],['Agachamento no Smith','Smith','Alternativa multiarticular'],['Agachamento goblet','Halter','Variação livre']],
+ 'cadeira extensora':[['Extensão unilateral de joelho na máquina','Máquina','Uma perna'],['Agachamento com calcanhares elevados','Halter','Ênfase em quadríceps'],['Spanish squat','Faixa elástica','Alternativa de quadríceps']],
+ 'cadeira flexora sentada':[['Mesa flexora deitada','Máquina','Flexão de joelho'],['Flexora unilateral em pé','Máquina','Uma perna'],['Flexão de joelhos com bola suíça','Bola suíça','Menor carga externa']],
+ 'panturrilha em pe na maquina':[['Panturrilha em pé no Smith','Smith','Joelhos estendidos'],['Panturrilha no leg press','Leg press','Joelhos quase estendidos'],['Panturrilha unilateral com halter','Halter','Uma perna']],
+ 'panturrilha sentado':[['Panturrilha sentado com halteres','Halteres','Joelhos flexionados'],['Panturrilha sentado na máquina','Máquina','Sóleo'],['Panturrilha sentado no Smith','Smith','Joelhos flexionados']],
+ 'supino inclinado com halteres':[['Supino inclinado na máquina convergente','Máquina','Mais estabilidade'],['Supino inclinado no Smith','Smith','Banco inclinado'],['Supino inclinado com barra','Barra','Carga progressiva']],
+ 'peck deck (voador)':[['Crossover na polia média','Polia','Isolamento do peito'],['Crucifixo com halteres no banco','Halteres','Amplitude controlada'],['Crossover na polia alta','Polia','Mudança de ângulo']],
+ 'puxada frontal na polia com pegada pronada':[['Barra fixa pronada','Peso corporal','Precisa de força relativa'],['Puxada articulada pronada','Máquina','Maior estabilidade'],['Puxada frontal unilateral na polia','Polia','Uma mão']],
+ 'remada baixa na polia':[['Remada baixa na máquina','Máquina','Tronco apoiado'],['Remada curvada com halteres','Halteres','Movimento livre'],['Remada com barra T','Barra T','Trabalho das costas']],
+ 'elevacao lateral com halteres':[['Elevação lateral unilateral na polia','Polia','Tensão contínua'],['Elevação lateral na máquina','Máquina','Estabilidade'],['Elevação lateral sentado com halteres','Halteres','Menos balanço']],
+ 'crucifixo inverso na polia':[['Crucifixo inverso na máquina','Máquina','Estabilidade'],['Crucifixo inverso inclinado com halteres','Halteres','Livre'],['Crucifixo inverso unilateral na polia','Polia','Unilateral']],
+ 'rosca direta na polia baixa com barra w':[['Rosca direta com barra W','Barra W','Bíceps'],['Rosca direta com halteres','Halteres','Livre'],['Rosca Scott na máquina','Máquina','Braço estabilizado']],
+ 'triceps na polia com barra v':[['Tríceps na polia com corda','Polia','Pegada livre'],['Tríceps na polia com barra reta','Polia','Barra'],['Tríceps testa com barra W','Barra W','Outra posição do ombro']],
+ 'terra romeno com halteres':[['Terra romeno com barra','Barra e anilhas','Movimento de quadril'],['Terra romeno no Smith','Smith','Trajetória guiada'],['Stiff com halteres','Halteres','Alongamento controlado']],
+ 'elevacao pelvica no smith':[['Elevação pélvica com barra','Barra','Hip thrust'],['Elevação pélvica na máquina','Máquina','Estabilidade'],['Ponte de glúteos com halter','Halter','Amplitude diferente']],
+ 'agachamento bulgaro com halteres':[['Agachamento búlgaro no Smith','Smith','Mais estabilidade'],['Afundo reverso com halteres','Halteres','Passada reversa'],['Afundo no lugar com barra','Barra','Controle do movimento']],
+ 'cadeira adutora':[['Adução de quadril unilateral na polia','Polia baixa','Adutores'],['Adução lateral com faixa elástica','Elástico','Alternativa leve'],['Adução de quadril deitado','Peso corporal','Alternativa leve']],
+ 'cadeira abdutora':[['Abdução de quadril em pé na polia','Polia','Glúteo médio'],['Caminhada lateral com miniband','Miniband','Resistência elástica'],['Abdução de quadril deitado','Peso corporal','Alternativa leve']],
+ 'puxada frontal na polia com pegada neutra':[['Puxada articulada pegada neutra','Máquina','Estabilidade'],['Barra fixa pegada neutra','Peso corporal','Mais exigente'],['Puxada unilateral na polia','Polia','Um braço']],
+ 'remada articulada com peito apoiado':[['Remada baixa na máquina','Máquina','Costas médias'],['Remada com halteres e peito apoiado','Halteres e banco','Sem exigir tanto da lombar'],['Remada na barra T com apoio','Barra T','Estabilidade']],
+ 'remada serrote com halter':[['Remada unilateral na máquina','Máquina','Tronco apoiado'],['Remada unilateral na polia','Polia','Tensão contínua'],['Remada com halteres no banco inclinado','Halteres','Ambos os braços']],
+ 'pulldown com bracos estendidos na polia':[['Pullover na máquina','Máquina','Dorsal'],['Pullover com halter','Halter','Ângulo diferente'],['Pulldown unilateral com braço estendido','Polia','Unilateral']],
+ 'rosca inclinada com halteres':[['Rosca alternada com halteres','Halteres','Livre'],['Rosca na polia com braços atrás do corpo','Polia','Bíceps alongado'],['Rosca inclinada unilateral com halter','Halter','Unilateral']],
+ 'rosca scott na maquina':[['Rosca Scott com barra W','Barra W e banco','Estabilidade'],['Rosca Scott unilateral com halter','Halter e banco','Unilateral'],['Rosca na polia baixa com apoio','Polia','Apoio para o braço']],
+ 'rosca martelo com halteres':[['Rosca martelo na polia com corda','Polia','Braquial'],['Rosca martelo alternada','Halteres','Um lado'],['Rosca martelo cruzada','Halteres','Pegada neutra']],
+ 'rosca concentrada com halter':[['Rosca Scott unilateral','Halter','Braço apoiado'],['Rosca unilateral na polia baixa','Polia','Tensão contínua'],['Rosca alternada sentado','Halteres','Estabilidade']],
+ 'crunch abdominal na polia':[['Abdominal na máquina','Máquina','Flexão de tronco'],['Crunch no solo com carga','Anilha','Controlado'],['Crunch com elástico','Faixa elástica','Alternativa']],
+ 'pallof press na polia':[['Pallof press com faixa elástica','Elástico','Antirrotação'],['Prancha lateral','Peso corporal','Core lateral'],['Pallof press unilateral ajoelhado','Polia','Outra posição']]
+};
+function opcoesExercicio(e){
+ const original={nome:e.nome,equip:'Exercício principal',dica:'Escolha habitual'};
+ return [original,...(ALTERNATIVAS_TREINO[normalizarTexto(e.nome)]||[]).map(a=>({nome:a[0],equip:a[1],dica:a[2]}))];
+}
+function indiceOpcao(e,opcoes){return Math.max(0,Math.min(opcoes.length-1,Number(e.opcaoAtiva)||0))}
+function idMidiaOpcao(tipo,id,indice){return indice?`${tipo}-alt-${id}-${indice}`:`${tipo}-${id}`}
+function ativarAlternativa(e,indice,opcoes){
+ const antiga=indiceOpcao(e,opcoes);
+ if(indice===antiga)return true;
+ if(e.sets?.some(s=>s.ok)&&!confirm('Você já concluiu séries nesta opção. Trocar de equipamento guardará os registros dela separadamente. Continuar?'))return false;
+ e.registrosOpcoes ||= {};
+ e.registrosOpcoes[antiga]={sets:JSON.parse(JSON.stringify(e.sets||[])),carga:e.carga??''};
+ const nova=e.registrosOpcoes[indice];
+ e.sets=nova?.sets?JSON.parse(JSON.stringify(nova.sets)):Array.from({length:e.series},()=>({kg:'',reps:'',ok:false}));
+ e.carga=nova?.carga??'';e.opcaoAtiva=indice;
+ e.ultimaOpcaoExecutada=opcoes[indice].nome;
+ salvar();return true;
+}
+
 function renderEx(e,di,gi,ei){
  const id=di+'-'+gi+'-'+ei;
+ const opcoes=opcoesExercicio(e),ativa=indiceOpcao(e,opcoes);
  while(e.sets.length<e.series)e.sets.push({kg:'',reps:'',ok:false});
  e.sets=e.sets.slice(0,e.series);
  const d=document.createElement('details');d.className='exercise';
  const finalizadas=e.sets.filter(s=>s.ok).length;
  d.innerHTML=`
-  <summary class="ex-summary"><span class="ex-title">${esc(e.nome)}<span class="ex-caption">${esc(e.series)} séries · ${esc(e.reps)} repetições</span></span><span class="ex-indicator">${finalizadas}/${e.series}</span><span class="caret">⌄</span></summary>
+  <summary class="ex-summary"><span class="ex-title">${esc(opcoes[ativa].nome)}<span class="ex-caption">${esc(e.series)} séries · ${esc(e.reps)} repetições</span></span><span class="ex-indicator">${finalizadas}/${e.series}</span><span class="caret">⌄</span></summary>
   <div class="ex-inner">
+  ${opcoes.length>1?`<div class="variantes" data-variantes="${id}" aria-label="Opções de equipamento">
+   <div class="variantes-top"><strong>↔ Alternativas</strong><span class="var-index">1 de ${opcoes.length}</span></div>
+   <div class="variantes-nav"><button type="button" class="var-prev" aria-label="Alternativa anterior">‹</button>
+    <div class="variantes-card" aria-label="Deslize para ver outras opções"><strong class="var-nome"></strong><span class="equip var-equip"></span><span class="tip var-tip"></span></div>
+    <button type="button" class="var-next" aria-label="Próxima alternativa">›</button></div>
+   <div class="variantes-foot"><span class="variantes-dots"></span><button type="button" class="variantes-use">Usar esta opção</button></div>
+   <div class="variantes-current">Executando: ${esc(opcoes[ativa].nome)}</div>
+  </div>`:''}
   <div class="anatomiaarea">
    <div class="anatomiaplaceholder" title="Selecionar imagem"><span class="icone">🖼</span><span>+ Adicionar imagem anatômica</span></div>
    <img class="anatomiapreview" alt="Infografia anatômica deste exercício" title="Toque para ampliar ou gerenciar">
@@ -596,6 +682,27 @@ function renderEx(e,di,gi,ei){
  d.open=!!e.aberto;
  d.addEventListener('toggle',()=>{if(e.aberto!==d.open){e.aberto=d.open;salvar()}});
  const q=s=>d.querySelector(s);
+ // Pré-visualize deslizando; só troca o exercício executado ao confirmar.
+ if(opcoes.length>1){
+  let visual=ativa;const painel=q('.variantes');
+  const mostrar=()=>{
+   const atual=opcoes[visual];
+   q('.var-index').textContent=`${visual+1} de ${opcoes.length}`;
+   q('.var-nome').textContent=atual.nome;
+   q('.var-equip').textContent=atual.equip;
+   q('.var-tip').textContent=atual.dica;
+   q('.variantes-dots').textContent=opcoes.map((_,i)=>i===visual?'●':'○').join(' ');
+   const bot=q('.variantes-use');bot.disabled=visual===ativa;bot.textContent=visual===ativa?'✓ Em uso':'Usar esta opção';
+  };
+  const ir=delta=>{visual=(visual+delta+opcoes.length)%opcoes.length;mostrar()};
+  q('.var-prev').onclick=()=>ir(-1);q('.var-next').onclick=()=>ir(1);
+  let xi=0,yi=0;
+  const area=q('.variantes-card');
+  area.addEventListener('touchstart',ev=>{xi=ev.touches[0].clientX;yi=ev.touches[0].clientY},{passive:true});
+  area.addEventListener('touchend',ev=>{if(!ev.changedTouches.length)return;const dx=ev.changedTouches[0].clientX-xi,dy=ev.changedTouches[0].clientY-yi;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.25)ir(dx<0?1:-1)},{passive:true});
+  q('.variantes-use').onclick=()=>{if(ativarAlternativa(e,visual,opcoes))render()};
+  mostrar();
+ }
  q('.anatomiaplaceholder').setAttribute('role','button');
  q('.anatomiaplaceholder').tabIndex=0;
  q('.anatomiaplaceholder').onclick=()=>q('.anatomiafile').click();
@@ -609,7 +716,7 @@ function renderEx(e,di,gi,ei){
  q('.obs').oninput=x=>{e.obs=x.target.value;salvar()};
  d.querySelectorAll('.series').forEach(r=>{const i=+r.dataset.s,s=e.sets[i];r.querySelector('.kg').oninput=x=>{s.kg=x.target.value;salvar()};r.querySelector('.rp').oninput=x=>{s.reps=x.target.value;salvar()};r.querySelector('.concluir').onclick=()=>{s.ok=!s.ok;salvar();render()}});
  q('.start').onclick=()=>{if(T.id!==id||T.rest<=0)iniciar(id,e.desc);else pausa()};q('.reset').onclick=()=>{if(T.id===id)zerar();else renderRelogios()};
- const anatomiaId='anatomia-'+id;
+ const anatomiaId=idMidiaOpcao('anatomia',id,ativa);
  const anatPreview=q('.anatomiapreview'),anatPlaceholder=q('.anatomiaplaceholder'),anatBot=q('.anatomiabotoes'),anatAviso=q('.anatomiaaviso');
  let anatUrl=null;
  function atualizarAnatomia(blob){
@@ -632,7 +739,7 @@ function renderEx(e,di,gi,ei){
   catch(err){anatAviso.textContent='Não foi possível salvar: '+err.message}
   ev.target.value='';
  };
- const fotoId='foto-'+id, videoId='video-'+id, preview=q('.fotopreview'), aviso=q('.fotoaviso');
+ const fotoId=idMidiaOpcao('foto',id,ativa), videoId=idMidiaOpcao('video',id,ativa), preview=q('.fotopreview'), aviso=q('.fotoaviso');
  const fotobotoes=q('.fotobotoes');let previewUrl=null,videoUrl=null;
  function atualizarPreview(blob){
   if(previewUrl)URL.revokeObjectURL(previewUrl);
@@ -691,12 +798,21 @@ function renderEx(e,di,gi,ei){
 async function deslocarMidias(di, inicioGrupo, indiceExcluido){
  const movimentos=[];
  const grupos=dados[di].grupos;
+ // Preservar também fotos, vídeos e anatomias de cada alternativa (índices 1–4).
+ const tiposAlternativos=['foto','video','anatomia'];
+ if(indiceExcluido===null){
+  for(let gi=inicioGrupo+1;gi<grupos.length;gi++)for(let ei=0;ei<grupos[gi].ex.length;ei++)for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)movimentos.push({origem:`${tipo}-alt-${di}-${gi}-${ei}-${ai}`,destino:`${tipo}-alt-${di}-${gi-1}-${ei}-${ai}`});
+ }else{
+  for(let ei=indiceExcluido+1;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)movimentos.push({origem:`${tipo}-alt-${di}-${inicioGrupo}-${ei}-${ai}`,destino:`${tipo}-alt-${di}-${inicioGrupo}-${ei-1}-${ai}`});
+ }
  if(indiceExcluido===null){
   for(let gi=inicioGrupo+1;gi<grupos.length;gi++)for(let ei=0;ei<grupos[gi].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])movimentos.push({origem:`${tipo}-${di}-${gi}-${ei}`,destino:`${tipo}-${di}-${gi-1}-${ei}`});
  }else{
   for(let ei=indiceExcluido+1;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])movimentos.push({origem:`${tipo}-${di}-${inicioGrupo}-${ei}`,destino:`${tipo}-${di}-${inicioGrupo}-${ei-1}`});
  }
  const ids=new Set(movimentos.flatMap(x=>[x.origem,x.destino]));
+ if(indiceExcluido===null)for(let ei=0;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)ids.add(`${tipo}-alt-${di}-${inicioGrupo}-${ei}-${ai}`);
+ else for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)ids.add(`${tipo}-alt-${di}-${inicioGrupo}-${indiceExcluido}-${ai}`);
  if(indiceExcluido===null){for(let ei=0;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])ids.add(`${tipo}-${di}-${inicioGrupo}-${ei}`)}
  else for(const tipo of ['foto','video','anatomia'])ids.add(`${tipo}-${di}-${inicioGrupo}-${indiceExcluido}`);
  const conteudo=new Map();
@@ -904,23 +1020,26 @@ function unificarExercicio(novo,antigo){
  // Observações antigas continuam acessíveis, juntamente com a orientação nova.
  if(a.obs && !e.obs.includes(a.obs))e.obs=e.obs?e.obs+' | Seu registro anterior: '+a.obs:a.obs;
  if(a.video!==undefined&&a.video!==null)e.video=a.video;
+ if(a.registrosOpcoes)e.registrosOpcoes=JSON.parse(JSON.stringify(a.registrosOpcoes));
+ if(a.opcaoAtiva)e.opcaoAtiva=a.opcaoAtiva;
+ if(a.ultimaOpcaoExecutada)e.ultimaOpcaoExecutada=a.ultimaOpcaoExecutada;
  e.sets=Array.from({length:e.series},(_,i)=>({kg:a.sets?.[i]?.kg??'',reps:a.sets?.[i]?.reps??'',ok:false}));
  e.sessaoData=dataLocal();return e;
 }
 async function atualizarMidiasPlano(antigos,relacoes,token){
  const todas=[];
- for(const it of antigos)for(const tipo of ['foto','video','anatomia']){
-  const id=`${tipo}-${it.di}-${it.gi}-${it.ei}`;const blob=await obterFoto(id);
+ for(const it of antigos)for(const tipo of ['foto','video','anatomia'])for(let ai=0;ai<=4;ai++){
+  const id=idMidiaOpcao(tipo,`${it.di}-${it.gi}-${it.ei}`,ai);const blob=await obterFoto(id);
   if(blob)todas.push({id,blob});
  }
  const mapa=new Map(todas.map(x=>[x.id,x.blob]));
  const transfer=[];
  for(const novo of relacoes){
   if(!novo.antigo)continue;
-  for(const tipo of ['foto','video','anatomia']){
-   const origem=`${tipo}-${novo.antigo.di}-${novo.antigo.gi}-${novo.antigo.ei}`;
+  for(const tipo of ['foto','video','anatomia'])for(let ai=0;ai<=4;ai++){
+   const origem=idMidiaOpcao(tipo,`${novo.antigo.di}-${novo.antigo.gi}-${novo.antigo.ei}`,ai);
    const blob=mapa.get(origem);
-   if(blob)transfer.push({id:`${tipo}-${novo.di}-${novo.gi}-${novo.ei}`,blob});
+   if(blob)transfer.push({id:idMidiaOpcao(tipo,`${novo.di}-${novo.gi}-${novo.ei}`,ai),blob});
   }
  }
  if(midiaSomenteLocal)throw new Error('Antes de alterar a ficha neste modo local, exporte o backup JSON e restaure em uma versão HTTPS. As mídias existentes não foram movidas.');
