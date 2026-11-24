@@ -33,6 +33,13 @@ video{width:100%;max-height:360px;margin-top:8px;border-radius:10px;background:#
 .plano-painel{background:#172033;border:1px solid #334155;border-radius:12px;padding:12px;margin:12px 0;display:grid;gap:9px}.plano-botao{background:#0e7490;font-weight:700}.midiasecao{margin-top:10px}.midiasecao .file{display:inline-block}.midiavisual{position:relative}.midiavisual video{display:block}
 .midiaopcoes{position:absolute;top:14px;right:9px;background:#0b1220e8;border:1px solid #64748b;border-radius:999px;padding:4px 11px;z-index:1}
 .midiaoculto{display:none!important}
+/* Fotos e vídeos opcionais, exibidos logo após a anatomia do exercício */
+.exec-midias{display:grid;gap:10px;margin:10px 0 12px}
+.exec-midias[hidden],.exec-midia[hidden]{display:none!important}
+.exec-midia{background:#0c1628;border:1px solid #33465f;border-radius:12px;padding:10px}
+.exec-midia-title{font-size:13px;font-weight:700;color:#bfd8ff;margin-bottom:5px}
+.exec-foto .fotopreview{max-height:380px}
+.exec-video video{max-height:420px}
 #fotoModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.94);padding:16px;box-sizing:border-box;align-items:center;justify-content:center;flex-direction:column;gap:12px}
 #fotoModal.visivel{display:flex}
 #fotoModal img{max-width:100%;max-height:82vh;object-fit:contain}
@@ -729,6 +736,10 @@ function renderEx(e,di,gi,ei){
    <div class="anatomiabotoes"><label class="file">+ Adicionar imagem<input class="anatomiafile" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden></label></div>
    <div class="anatomiaaviso" aria-live="polite"></div>
   </div>
+  <div class="exec-midias" hidden aria-label="Mídias deste exercício">
+   <section class="exec-midia exec-foto" hidden><div class="exec-midia-title">📷 Foto do aparelho</div><img class="fotopreview" alt="Foto do aparelho deste exercício" title="Toque para ampliar ou gerenciar a foto"></section>
+   <section class="exec-midia exec-video" hidden><div class="exec-midia-title">▶ Vídeo de execução</div><div class="videohost"></div></section>
+  </div>
   <div class="series-title"><b>Minhas séries</b><span>Toque em S1 para concluir</span></div>
   <div class="series-head"><span>Série</span><span>Carga (kg)</span><span>Reps</span></div>
   ${e.sets.map((s,i)=>`<div class="series" data-s="${i}"><button type="button" class="${s.ok?'done':'alt'} concluir" aria-pressed="${s.ok}" aria-label="${s.ok?'Desmarcar':'Concluir'} série ${i+1}">${s.ok?'✓ S'+(i+1):'S'+(i+1)}</button><input class="kg" type="number" step="0.5" placeholder="kg" aria-label="Carga da série ${i+1} em kg" value="${esc(s.kg)}"><input class="rp" type="number" placeholder="reps" aria-label="Repetições da série ${i+1}" value="${esc(s.reps)}"></div>`).join('')}
@@ -746,14 +757,16 @@ function renderEx(e,di,gi,ei){
    </div>
    ${htmlFocoExercicio(e,dados[di].grupos[gi].nome)}
    <label><div class="small">Observações</div><textarea class="obs" rows="2">${esc(e.obs)}</textarea></label>
-   <div class="fotoarea"><div class="fototitulo">Foto do aparelho (opcional)</div><img class="fotopreview" alt="Foto do aparelho deste exercício" title="Toque para gerenciar a foto"><div class="fotobotoes"><label class="file">+ Foto<input class="fotofile" type="file" accept="image/*" hidden></label><label class="file alt">📷 Câmera<input class="fotocamera" type="file" accept="image/*" capture="environment" hidden></label></div><div class="fotoaviso"></div></div>
-   <div class="midiasecao"><div class="videoadd"><label class="file alt">+ Vídeo do exercício<input class="video" type="file" accept="video/*" hidden></label></div><div class="videohost"></div></div>
+   <div class="fotoarea"><div class="fototitulo">Foto do aparelho (opcional)</div><div class="fotobotoes"><label class="file">+ Foto<input class="fotofile" type="file" accept="image/*" hidden></label><label class="file alt">📷 Câmera<input class="fotocamera" type="file" accept="image/*" capture="environment" hidden></label></div><div class="fotoaviso"></div></div>
+   <div class="midiasecao"><div class="videoadd"><label class="file alt">+ Vídeo do exercício<input class="video" type="file" accept="video/*" hidden></label></div><div class="videoaviso" role="status" aria-live="polite"></div></div>
    <button type="button" class="removeitem removeex">Excluir exercício</button>
   </div></details>
  </div>`;
  d.open=!!e.aberto;
  d.addEventListener('toggle',()=>{if(e.aberto!==d.open){e.aberto=d.open;salvar()}});
  const q=s=>d.querySelector(s);
+ const midiasContainer=q('.exec-midias');
+ function atualizarVisibilidadeMidias(){midiasContainer.hidden=q('.exec-foto').hidden && q('.exec-video').hidden;}
  // Abas persistentes com escolha explícita de equipamento.
  {
   const painel=q('.abas-win'),form=painel.querySelector('.aba-win-form');
@@ -822,12 +835,13 @@ function renderEx(e,di,gi,ei){
   ev.target.value='';
  };
  const fotoId=idMidiaOpcao('foto',id,ativa), videoId=idMidiaOpcao('video',id,ativa), preview=q('.fotopreview'), aviso=q('.fotoaviso');
- const fotobotoes=q('.fotobotoes');let previewUrl=null,videoUrl=null;
+ const fotobotoes=q('.fotobotoes'),fotoPanel=q('.exec-foto');let previewUrl=null,videoUrl=null;
  function atualizarPreview(blob){
   if(previewUrl)URL.revokeObjectURL(previewUrl);
   previewUrl=blob?URL.createObjectURL(blob):null;
-  if(previewUrl){preview.src=previewUrl;preview.style.display='block';fotobotoes.classList.add('midiaoculto')}
-  else{preview.removeAttribute('src');preview.style.display='none';fotobotoes.classList.remove('midiaoculto')}
+  fotoPanel.hidden=!blob;atualizarVisibilidadeMidias();
+  if(previewUrl){preview.src=previewUrl;preview.style.display='block'}
+  else{preview.removeAttribute('src');preview.style.display='none'}
  }
  const acoesFoto={
   ampliar:()=>{if(previewUrl)abrirFoto(previewUrl)},
@@ -839,17 +853,17 @@ function renderEx(e,di,gi,ei){
  async function selecionarFoto(event){
   const file=event.target.files?.[0];if(!file)return;
   aviso.textContent='Salvando foto...';
-  try{const blob=await reduzirFoto(file);await guardarFoto(fotoId,blob);if(d.isConnected)atualizarPreview(blob);aviso.textContent=''}
+  try{const blob=await reduzirFoto(file);await guardarFoto(fotoId,blob);if(d.isConnected)atualizarPreview(blob);aviso.textContent='✓ Foto salva automaticamente.'}
   catch(err){aviso.textContent='Não foi possível salvar: '+err.message}
   event.target.value='';
  }
  q('.fotofile').addEventListener('change',selecionarFoto);
  q('.fotocamera').addEventListener('change',selecionarFoto);
- const videoInput=q('.video'),videoadd=q('.videoadd'),videohost=q('.videohost');
+ const videoInput=q('.video'),videoadd=q('.videoadd'),videohost=q('.videohost'),videoPanel=q('.exec-video'),videoAviso=q('.videoaviso');
  function atualizarVideo(blob){
   if(videoUrl)URL.revokeObjectURL(videoUrl);
   videoUrl=blob?URL.createObjectURL(blob):null;
-  videohost.replaceChildren();videoadd.classList.toggle('midiaoculto',!!blob);
+  videohost.replaceChildren();videoPanel.hidden=!blob;atualizarVisibilidadeMidias();
   if(!blob)return;
   const wrap=document.createElement('div');wrap.className='midiavisual';
   const v=document.createElement('video');v.controls=true;v.preload='metadata';v.playsInline=true;v.src=videoUrl;
@@ -865,8 +879,9 @@ function renderEx(e,di,gi,ei){
  }
  videoInput.onchange=async ev=>{
   const file=ev.target.files?.[0];if(!file)return;
-  try{await guardarFoto(videoId,file);if(d.isConnected)atualizarVideo(file)}
-  catch(err){alert('Não foi possível salvar o vídeo. Tente um arquivo menor ou libere espaço no dispositivo. '+err.message)}
+  videoAviso.textContent='Salvando vídeo...';
+  try{await guardarFoto(videoId,file);if(d.isConnected)atualizarVideo(file);videoAviso.textContent='✓ Vídeo salvo automaticamente.'}
+  catch(err){videoAviso.textContent='Falha ao salvar vídeo: '+err.message;alert('Não foi possível salvar o vídeo. Tente um arquivo menor ou libere espaço no dispositivo. '+err.message)}
   ev.target.value='';
  };
  obterFoto(videoId).then(blob=>{if(d.isConnected&&blob)atualizarVideo(blob)}).catch(()=>{});
