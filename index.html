@@ -216,7 +216,7 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 
  <div class="settings-head">Configurações e segurança <span class="small">Alterações são salvas automaticamente</span></div>
  <section class="backup-panel" aria-label="Backup dos seus treinos">
-  <h2>Backup dos dados <span class="small" style="color:#86efac;font-size:12px">v2.1 · alternativas por deslize</span></h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
+  <h2>Backup dos dados <span class="small" style="color:#86efac;font-size:12px">v2.1.1 · alternativas por deslize</span></h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
   <div class="backup-commands"><button id="exportarBackup" type="button">↓ Exportar backup</button><button id="importarBackup" type="button" class="alt">↑ Restaurar</button></div>
   <input id="backupArquivo" type="file" accept=".json,application/json" hidden><div id="backupStatus" class="backup-status" role="status" aria-live="polite"></div>
   <p class="small">A restauração substitui os registros atuais. Salve uma cópia primeiro.</p>
@@ -614,9 +614,34 @@ const ALTERNATIVAS_TREINO={
  'crunch abdominal na polia':[['Abdominal na máquina','Máquina','Flexão de tronco'],['Crunch no solo com carga','Anilha','Controlado'],['Crunch com elástico','Faixa elástica','Alternativa']],
  'pallof press na polia':[['Pallof press com faixa elástica','Elástico','Antirrotação'],['Prancha lateral','Peso corporal','Core lateral'],['Pallof press unilateral ajoelhado','Polia','Outra posição']]
 };
+const ALTERNATIVAS_LEGADO={
+ 'supino reto na maquina ou halteres':[['Supino reto com halteres','Halteres','Peso livre'],['Supino reto na máquina','Máquina','Trajetória estável'],['Supino reto com barra','Barra e anilhas','Carga progressiva'],['Supino reto no Smith','Smith','Trajetória guiada']],
+ 'supino reto':[['Supino reto com halteres','Halteres','Livre'],['Supino reto na máquina','Máquina','Estável'],['Supino reto no Smith','Smith','Guiado']],
+ 'supino inclinado na maquina':[['Supino inclinado com halteres','Halteres','Livre'],['Supino inclinado com barra','Barra','Carga progressiva'],['Supino inclinado no Smith','Smith','Guiado']],
+ 'supino inclinado':[['Supino inclinado com halteres','Halteres','Livre'],['Supino inclinado na máquina convergente','Máquina','Estável'],['Supino inclinado no Smith','Smith','Guiado']],
+ 'voador na maquina':[['Crossover na polia média','Polia','Peito'],['Crucifixo reto com halteres','Halteres','Amplitude controlada'],['Crossover na polia alta','Polia','Novo ângulo']],
+ 'paralelas':[['Paralelas assistidas','Máquina assistida','Mesma mecânica'],['Supino declinado com halteres','Halteres','Ênfase peitoral inferior'],['Flexão de braços com carga','Peso corporal','Alternativa livre']],
+ 'desenvolvimento na maquina':[['Desenvolvimento com halteres sentado','Halteres','Livre'],['Desenvolvimento no Smith','Smith','Guiado'],['Desenvolvimento com barra sentado','Barra','Carga']],
+ 'elevacao lateral':[['Elevação lateral com halteres','Halteres','Livre'],['Elevação lateral unilateral na polia','Polia','Tensão contínua'],['Elevação lateral na máquina','Máquina','Estável']],
+ 'elevacao frontal na polia':[['Elevação frontal com halteres','Halteres','Um ou dois braços'],['Elevação frontal com barra','Barra','Controle'],['Elevação frontal com anilha','Anilha','Pegada próxima']],
+ 'triceps frances na polia':[['Tríceps francês com halter','Halter','Livre'],['Tríceps francês com barra W','Barra W','Acima da cabeça'],['Extensão acima da cabeça unilateral na polia','Polia','Unilateral']],
+ 'triceps testa na polia':[['Tríceps testa com barra W','Barra W','Banco'],['Tríceps testa com halteres','Halteres','Banco'],['Tríceps testa na polia com corda','Polia e corda','Extensão do cotovelo']],
+ 'triceps coice unilateral':[['Tríceps coice na polia','Polia baixa','Tensão contínua'],['Tríceps na polia com corda','Polia','Braços ao lado'],['Tríceps coice com halter','Halter','Livre']],
+ 'puxada frontal na polia':[['Puxada articulada na máquina','Máquina','Dorsal'],['Barra fixa assistida','Máquina assistida','Vertical'],['Puxada frontal unilateral','Polia','Unilateral']],
+ 'remada baixa na maquina':[['Remada baixa na polia','Polia','Horizontal'],['Remada com halteres apoiado no banco','Halteres','Peito apoiado'],['Remada com barra T apoiada','Barra T','Costas']],
+ 'rosca direta na polia':[['Rosca direta com barra W','Barra W','Livre'],['Rosca direta com halteres','Halteres','Livre'],['Rosca Scott na máquina','Máquina','Estável']],
+ 'rosca martelo':[['Rosca martelo com halteres','Halteres','Livre'],['Rosca martelo na polia com corda','Polia','Tensão contínua'],['Rosca martelo unilateral','Halter','Por braço']],
+ 'abdominal na maquina ou crunch':[['Crunch abdominal na polia','Polia','Flexão do tronco'],['Crunch no solo com anilha','Anilha','Controle'],['Crunch abdominal na máquina','Máquina','Estável']],
+ 'prancha':[['Prancha com apoio nos antebraços','Peso corporal','Isométrico'],['Prancha com anilha','Anilha','Mais carga'],['Prancha com toques nos ombros','Peso corporal','Antirrotação']],
+ 'mesa ou cadeira flexora':[['Cadeira flexora sentada','Máquina','Posterior'],['Mesa flexora deitada','Máquina','Posterior'],['Flexora unilateral em pé','Máquina','Unilateral']],
+ 'panturrilha sentado ou em pe':[['Panturrilha sentado','Máquina','Sóleo'],['Panturrilha em pé no Smith','Smith','Gastrocnêmio'],['Panturrilha no leg press','Leg press','Gastrocnêmio']],
+ 'terra romeno com halteres (tecnica leve)':[['Terra romeno com barra','Barra','Controle'],['Terra romeno no Smith','Smith','Guiado'],['Stiff com halteres','Halteres','Controle']],
+ 'elevacao pelvica na maquina':[['Elevação pélvica no Smith','Smith','Glúteo máximo'],['Elevação pélvica com barra','Barra','Glúteo máximo'],['Ponte de glúteos com halter','Halter','Livre']],
+ 'abducao de quadril na maquina':[['Abdução em pé na polia','Polia','Glúteo médio'],['Caminhada lateral com miniband','Elástico','Glúteo médio'],['Abdução deitada','Peso corporal','Livre']]
+};
 function opcoesExercicio(e){
  const original={nome:e.nome,equip:'Exercício principal',dica:'Escolha habitual'};
- return [original,...(ALTERNATIVAS_TREINO[normalizarTexto(e.nome)]||[]).map(a=>({nome:a[0],equip:a[1],dica:a[2]}))];
+ return [original,...(ALTERNATIVAS_TREINO[normalizarTexto(e.nome)]||ALTERNATIVAS_LEGADO[normalizarTexto(e.nome)]||[]).map(a=>({nome:a[0],equip:a[1],dica:a[2]}))];
 }
 function indiceOpcao(e,opcoes){return Math.max(0,Math.min(opcoes.length-1,Number(e.opcaoAtiva)||0))}
 function idMidiaOpcao(tipo,id,indice){return indice?`${tipo}-alt-${id}-${indice}`:`${tipo}-${id}`}
