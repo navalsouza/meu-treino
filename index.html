@@ -173,6 +173,8 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 #statusCloudTopo[data-level="success"]{color:#86efac}
 @media (max-width:420px){.sync-actions{grid-template-columns:1fr}}
 
+.var-mini{width:100%;max-height:155px;object-fit:contain;background:#080d18;border-radius:8px;margin:6px auto 0;cursor:zoom-in}
+.var-mini-tip{font-size:10px;color:#7e95b5}
 /* Alternativas por deslize, sem poluir a ficha principal. */
 .variantes{margin:12px 0 4px;background:#121f34;border:1px solid #345072;border-radius:13px;padding:11px}
 .variantes-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:#aabedb}
@@ -671,7 +673,7 @@ function renderEx(e,di,gi,ei){
   ${opcoes.length>1?`<div class="variantes" data-variantes="${id}" aria-label="Opções de equipamento">
    <div class="variantes-top"><strong>↔ Alternativas</strong><span class="var-index">1 de ${opcoes.length}</span></div>
    <div class="variantes-nav"><button type="button" class="var-prev" aria-label="Alternativa anterior">‹</button>
-    <div class="variantes-card" aria-label="Deslize para ver outras opções"><strong class="var-nome"></strong><span class="equip var-equip"></span><span class="tip var-tip"></span></div>
+    <div class="variantes-card" aria-label="Deslize para ver outras opções"><strong class="var-nome"></strong><span class="equip var-equip"></span><span class="tip var-tip"></span><img class="var-mini" alt="Imagem anatômica da opção" hidden><span class="var-mini-tip"></span></div>
     <button type="button" class="var-next" aria-label="Próxima alternativa">›</button></div>
    <div class="variantes-foot"><span class="variantes-dots"></span><button type="button" class="variantes-use">Usar esta opção</button></div>
    <div class="variantes-current">Executando: ${esc(opcoes[ativa].nome)}</div>
@@ -710,7 +712,17 @@ function renderEx(e,di,gi,ei){
  // Pré-visualize deslizando; só troca o exercício executado ao confirmar.
  if(opcoes.length>1){
   let visual=ativa;const painel=q('.variantes');
+  let varImageUrl=null,varRequest=0;
   const mostrar=()=>{
+   const req=++varRequest;
+   if(varImageUrl){URL.revokeObjectURL(varImageUrl);varImageUrl=null;}
+   const img=q('.var-mini');img.hidden=true;img.removeAttribute('src');
+   q('.var-mini-tip').textContent='';
+   obterFoto(idMidiaOpcao('anatomia',id,visual)).then(blob=>{
+    if(req!==varRequest||!d.isConnected)return;
+    if(!blob){q('.var-mini-tip').textContent='Imagem não cadastrada nesta alternativa';return;}
+    varImageUrl=URL.createObjectURL(blob);img.src=varImageUrl;img.hidden=false;
+   }).catch(()=>{if(req===varRequest&&d.isConnected)q('.var-mini-tip').textContent='Imagem indisponível';});
    const atual=opcoes[visual];
    q('.var-index').textContent=`${visual+1} de ${opcoes.length}`;
    q('.var-nome').textContent=atual.nome;
@@ -721,6 +733,7 @@ function renderEx(e,di,gi,ei){
   };
   const ir=delta=>{visual=(visual+delta+opcoes.length)%opcoes.length;mostrar()};
   q('.var-prev').onclick=()=>ir(-1);q('.var-next').onclick=()=>ir(1);
+  q('.var-mini').onclick=()=>{if(varImageUrl)abrirFoto(varImageUrl)};
   let xi=0,yi=0;
   const area=q('.variantes-card');
   area.addEventListener('touchstart',ev=>{xi=ev.touches[0].clientX;yi=ev.touches[0].clientY},{passive:true});
