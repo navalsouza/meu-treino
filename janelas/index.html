@@ -40,6 +40,13 @@ video{width:100%;max-height:360px;margin-top:8px;border-radius:10px;background:#
 .exec-midia-title{font-size:13px;font-weight:700;color:#bfd8ff;margin-bottom:5px}
 .exec-foto .fotopreview{max-height:380px}
 .exec-video video{max-height:420px}
+.video-carrossel{position:relative;isolation:isolate}
+.video-carrossel video{width:100%;display:block}
+.video-nav{position:absolute;z-index:3;top:50%;transform:translateY(-50%);min-width:38px;width:42px;height:52px;padding:0;border-radius:999px;border:1px solid #a6c7ff;background:#10213fdf;color:white;font-size:29px;font-weight:700;display:grid;place-items:center;box-shadow:0 3px 15px #000a;touch-action:manipulation}
+.video-nav.anterior{left:5px}.video-nav.proximo{right:5px}
+.video-contador{position:absolute;z-index:2;top:8px;left:9px;border:1px solid #7385aa;background:#0b1220d9;border-radius:999px;padding:4px 9px;color:#e2e8f0;font-size:11px;font-weight:700}
+.video-status{margin:4px 0;font-size:12px;color:#86efac}
+@media(max-width:380px){.video-nav{width:36px;height:46px;font-size:24px}}
 #fotoModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.94);padding:16px;box-sizing:border-box;align-items:center;justify-content:center;flex-direction:column;gap:12px}
 #fotoModal.visivel{display:flex}
 #fotoModal img{max-width:100%;max-height:82vh;object-fit:contain}
@@ -688,6 +695,22 @@ function opcoesExercicio(e){
 }
 function indiceOpcao(e,opcoes){return Math.max(0,Math.min(opcoes.length-1,Number(e.opcaoAtiva)||0))}
 function idMidiaOpcao(tipo,id,indice){return indice?`${tipo}-alt-${id}-${indice}`:`${tipo}-${id}`}
+// A mídia original continua no identificador legado. Vídeos extras usam chaves independentes.
+function tokensVideosExtras(e,indice){
+ const list=e?.videosExtras?.[String(indice)];
+ return Array.isArray(list)?[...new Set(list.filter(t=>typeof t==='string' && /^[a-zA-Z0-9_-]{1,70}$/.test(t)))]:[];
+}
+function idVideoExtra(id,indice,token){return idMidiaOpcao('video',id,indice)+'-clip-'+token}
+function referenciasVideosExtras(e){
+ return Object.keys(e?.videosExtras||{}).flatMap(k=>{
+  const indice=Number(k);
+  if(!Number.isInteger(indice)||indice<0||indice>100)return [];
+  return tokensVideosExtras(e,indice).map(token=>({indice,token}));
+ });
+}
+function idVideoExtraBiblioteca(nome,ei,indice,token){
+ return chaveMidiaGrupo(nome,'video',ei)+(indice?'-alt-'+indice:'')+'-clip-'+token;
+}
 function ativarAlternativa(e,indice,opcoes){
  const antiga=indiceOpcao(e,opcoes);
  if(indice===antiga)return true;
@@ -758,7 +781,7 @@ function renderEx(e,di,gi,ei){
    ${htmlFocoExercicio(e,dados[di].grupos[gi].nome)}
    <label><div class="small">Observações</div><textarea class="obs" rows="2">${esc(e.obs)}</textarea></label>
    <div class="fotoarea"><div class="fototitulo">Foto do aparelho (opcional)</div><div class="fotobotoes"><label class="file">+ Foto<input class="fotofile" type="file" accept="image/*" hidden></label><label class="file alt">📷 Câmera<input class="fotocamera" type="file" accept="image/*" capture="environment" hidden></label></div><div class="fotoaviso"></div></div>
-   <div class="midiasecao"><div class="videoadd"><label class="file alt">+ Vídeo do exercício<input class="video" type="file" accept="video/*" hidden></label></div><div class="videoaviso" role="status" aria-live="polite"></div></div>
+   <div class="midiasecao"><div class="videoadd"><label class="file alt">+ Adicionar vídeo<input class="video" type="file" accept="video/*" multiple hidden></label><input class="videotroca" type="file" accept="video/*" hidden></div><div class="videoaviso video-status" role="status" aria-live="polite"></div></div>
    <button type="button" class="removeitem removeex">Excluir exercício</button>
   </div></details>
  </div>`;
@@ -835,7 +858,7 @@ function renderEx(e,di,gi,ei){
   ev.target.value='';
  };
  const fotoId=idMidiaOpcao('foto',id,ativa), videoId=idMidiaOpcao('video',id,ativa), preview=q('.fotopreview'), aviso=q('.fotoaviso');
- const fotobotoes=q('.fotobotoes'),fotoPanel=q('.exec-foto');let previewUrl=null,videoUrl=null;
+ const fotobotoes=q('.fotobotoes'),fotoPanel=q('.exec-foto');let previewUrl=null;
  function atualizarPreview(blob){
   if(previewUrl)URL.revokeObjectURL(previewUrl);
   previewUrl=blob?URL.createObjectURL(blob):null;
@@ -859,32 +882,109 @@ function renderEx(e,di,gi,ei){
  }
  q('.fotofile').addEventListener('change',selecionarFoto);
  q('.fotocamera').addEventListener('change',selecionarFoto);
- const videoInput=q('.video'),videoadd=q('.videoadd'),videohost=q('.videohost'),videoPanel=q('.exec-video'),videoAviso=q('.videoaviso');
- function atualizarVideo(blob){
-  if(videoUrl)URL.revokeObjectURL(videoUrl);
-  videoUrl=blob?URL.createObjectURL(blob):null;
-  videohost.replaceChildren();videoPanel.hidden=!blob;atualizarVisibilidadeMidias();
-  if(!blob)return;
-  const wrap=document.createElement('div');wrap.className='midiavisual';
+ const videoInput=q('.video'),videoTroca=q('.videotroca'),videohost=q('.videohost'),videoPanel=q('.exec-video'),videoAviso=q('.videoaviso');
+ let videoUrl=null,listaVideos=[],indiceVideo=0,cargaVideos=0;
+ function mostrarVideo(){
+  const antigo=videohost.querySelector('video');if(antigo)antigo.pause();
+  videohost.replaceChildren();
+  if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null}
+  videoPanel.hidden=listaVideos.length===0;
+  atualizarVisibilidadeMidias();
+  if(!listaVideos.length)return;
+  indiceVideo=Math.max(0,Math.min(indiceVideo,listaVideos.length-1));
+  const item=listaVideos[indiceVideo];
+  videoUrl=URL.createObjectURL(item.blob);
+  const wrap=document.createElement('div');wrap.className='midiavisual video-carrossel';
   const v=document.createElement('video');v.controls=true;v.preload='metadata';v.playsInline=true;v.src=videoUrl;
-  const op=document.createElement('button');op.className='midiaopcoes';op.textContent='⋯';op.type='button';op.title='Gerenciar vídeo';op.setAttribute('aria-label','Opções do vídeo');
-  const menu=()=>abrirMenuMidia('video',{trocar:()=>videoInput.click(),remover:async()=>{if(!confirm('Remover o vídeo deste exercício?'))return;try{await excluirFoto(videoId);atualizarVideo(null)}catch(err){alert('Não foi possível remover: '+err.message)}}});
+  const op=document.createElement('button');op.className='midiaopcoes';op.textContent='⋯';op.type='button';op.title='Gerenciar este vídeo';op.setAttribute('aria-label','Opções do vídeo '+(indiceVideo+1));
+  const menu=()=>abrirMenuMidia('video',{
+   trocar:()=>videoTroca.click(),
+   remover:async()=>{
+    if(!confirm('Excluir apenas o vídeo '+(indiceVideo+1)+' de '+listaVideos.length+'?'))return;
+    try{
+     await excluirFoto(item.id);
+     if(item.id!==videoId){
+      e.videosExtras ||= {};
+      e.videosExtras[String(ativa)]=tokensVideosExtras(e,ativa).filter(token=>idVideoExtra(id,ativa,token)!==item.id);
+      salvar();
+     }
+     videoAviso.textContent='Vídeo removido. Outros vídeos mantidos.';
+     await carregarVideos(null,Math.min(indiceVideo,listaVideos.length-2));
+    }catch(err){videoAviso.textContent='Erro ao remover vídeo: '+err.message}
+   }
+  });
   op.onclick=menu;
-  // No vídeo, o toque normal controla a reprodução; o toque prolongado abre as opções.
-  let pressTimer=null,pressAt=0;
-  v.addEventListener('touchstart',()=>{pressAt=Date.now();pressTimer=setTimeout(()=>{v.pause();menu();pressTimer=null},650)},{passive:true});
+  let pressTimer=null;
+  v.addEventListener('touchstart',()=>{pressTimer=setTimeout(()=>{v.pause();menu();pressTimer=null},650)},{passive:true});
   for(const ev of ['touchend','touchcancel','touchmove'])v.addEventListener(ev,()=>{clearTimeout(pressTimer);pressTimer=null},{passive:true});
   v.addEventListener('contextmenu',ev=>{ev.preventDefault();menu()});
-  wrap.append(v,op);videohost.appendChild(wrap);
+  wrap.appendChild(v);
+  if(listaVideos.length>1){
+   const contador=document.createElement('span');contador.className='video-contador';contador.textContent=(indiceVideo+1)+' / '+listaVideos.length+' vídeos';wrap.appendChild(contador);
+   function criarSeta(direcao,classe,rotulo,proximo){
+    const b=document.createElement('button');b.type='button';b.className='video-nav '+classe;b.textContent=direcao;b.setAttribute('aria-label',rotulo);
+    b.onclick=()=>{indiceVideo=proximo;mostrarVideo()};
+    wrap.appendChild(b);
+   }
+   if(indiceVideo>0)criarSeta('‹','anterior','Vídeo anterior',indiceVideo-1);
+   if(indiceVideo<listaVideos.length-1)criarSeta('›','proximo','Próximo vídeo',indiceVideo+1);
+  }
+  wrap.appendChild(op);videohost.appendChild(wrap);
  }
- videoInput.onchange=async ev=>{
-  const file=ev.target.files?.[0];if(!file)return;
-  videoAviso.textContent='Salvando vídeo...';
-  try{await guardarFoto(videoId,file);if(d.isConnected)atualizarVideo(file);videoAviso.textContent='✓ Vídeo salvo automaticamente.'}
-  catch(err){videoAviso.textContent='Falha ao salvar vídeo: '+err.message;alert('Não foi possível salvar o vídeo. Tente um arquivo menor ou libere espaço no dispositivo. '+err.message)}
+ async function carregarVideos(preferido=null,posicao=0){
+  const carga=++cargaVideos;
+  const ids=[videoId,...tokensVideosExtras(e,ativa).map(token=>idVideoExtra(id,ativa,token))];
+  const itens=await Promise.all(ids.map(async midiaId=>{
+   try{return {id:midiaId,blob:await obterFoto(midiaId)}}catch(err){console.warn('Vídeo indisponível:',midiaId,err);return {id:midiaId,blob:null}}
+  }));
+  if(!d.isConnected||carga!==cargaVideos)return;
+  listaVideos=itens.filter(x=>x.blob instanceof Blob);
+  const encontrado=preferido?listaVideos.findIndex(x=>x.id===preferido):-1;
+  indiceVideo=encontrado>=0?encontrado:Math.min(Math.max(0,posicao),Math.max(0,listaVideos.length-1));
+  mostrarVideo();
+ }
+ async function adicionarVideos(ev){
+  const arquivos=[...(ev.target.files||[])];if(!arquivos.length)return;
+  ev.target.disabled=true;
+  let ultimo=null,adicionados=0;
+  for(const [i,file] of arquivos.entries()){
+   videoAviso.textContent='Salvando vídeo '+(i+1)+' de '+arquivos.length+'...';
+   try{
+    if(!file.type.startsWith('video/'))throw new Error('Selecione arquivos de vídeo válidos.');
+    // O primeiro vídeo usa a chave histórica; os demais nunca substituem o vídeo anterior.
+    const baseExistente=await obterFoto(videoId);
+    let destino=videoId,token=null;
+    if(baseExistente || tokensVideosExtras(e,ativa).length){
+     token=Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,11);
+     destino=idVideoExtra(id,ativa,token);
+    }
+    await guardarFoto(destino,file);
+    if(token){
+     e.videosExtras ||= {};
+     e.videosExtras[String(ativa)]=[...tokensVideosExtras(e,ativa),token];
+     salvar();
+    }
+    ultimo=destino;adicionados++;
+   }catch(err){videoAviso.textContent='Falha no vídeo '+(i+1)+': '+err.message;break}
+  }
+  if(adicionados){
+   await carregarVideos(ultimo);
+   videoAviso.textContent='✓ '+adicionados+' vídeo(s) salvo(s) automaticamente.';
+  }
+  ev.target.disabled=false;ev.target.value='';
+ }
+ videoInput.addEventListener('change',adicionarVideos);
+ videoTroca.addEventListener('change',async ev=>{
+  const file=ev.target.files?.[0],item=listaVideos[indiceVideo];if(!file||!item)return;
+  videoAviso.textContent='Substituindo vídeo...';
+  try{
+   await guardarFoto(item.id,file);
+   await carregarVideos(item.id);
+   videoAviso.textContent='✓ Vídeo substituído e salvo.';
+  }catch(err){videoAviso.textContent='Não foi possível substituir: '+err.message}
   ev.target.value='';
- };
- obterFoto(videoId).then(blob=>{if(d.isConnected&&blob)atualizarVideo(blob)}).catch(()=>{});
+ });
+ carregarVideos().catch(err=>{if(d.isConnected)videoAviso.textContent='Não foi possível carregar os vídeos: '+err.message});
  return d;
 }
 
@@ -908,6 +1008,24 @@ async function deslocarMidias(di, inicioGrupo, indiceExcluido){
   for(let ei=indiceExcluido+1;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])movimentos.push({origem:`${tipo}-${di}-${inicioGrupo}-${ei}`,destino:`${tipo}-${di}-${inicioGrupo}-${ei-1}`});
  }
  const ids=new Set(movimentos.flatMap(x=>[x.origem,x.destino]));
+ // Move também cada vídeo adicional com o exercício, sem misturar vídeos de fichas distintas.
+ const incluirExtras=(ex,origemBase,destinoBase=null)=>{
+  for(const ref of referenciasVideosExtras(ex)){
+   const origem=idVideoExtra(origemBase,ref.indice,ref.token);
+   ids.add(origem);
+   if(destinoBase){
+    const destino=idVideoExtra(destinoBase,ref.indice,ref.token);
+    ids.add(destino);movimentos.push({origem,destino});
+   }
+  }
+ };
+ if(indiceExcluido===null){
+  for(let gi=inicioGrupo;gi<grupos.length;gi++)for(let ei=0;ei<grupos[gi].ex.length;ei++)
+   incluirExtras(grupos[gi].ex[ei],di+'-'+gi+'-'+ei,gi>inicioGrupo?di+'-'+(gi-1)+'-'+ei:null);
+ }else{
+  for(let ei=indiceExcluido;ei<grupos[inicioGrupo].ex.length;ei++)
+   incluirExtras(grupos[inicioGrupo].ex[ei],di+'-'+inicioGrupo+'-'+ei,ei>indiceExcluido?di+'-'+inicioGrupo+'-'+(ei-1):null);
+ }
  if(indiceExcluido===null)for(let ei=0;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)ids.add(`${tipo}-alt-${di}-${inicioGrupo}-${ei}-${ai}`);
  else for(const tipo of tiposAlternativos)for(let ai=1;ai<=4;ai++)ids.add(`${tipo}-alt-${di}-${inicioGrupo}-${indiceExcluido}-${ai}`);
  if(indiceExcluido===null){for(let ei=0;ei<grupos[inicioGrupo].ex.length;ei++)for(const tipo of ['foto','video','anatomia'])ids.add(`${tipo}-${di}-${inicioGrupo}-${ei}`)}
@@ -929,8 +1047,19 @@ async function guardarModelo(g,di,gi){
  try{
   const blobs=[];
   for(let ei=0;ei<g.ex.length;ei++)for(const tipo of ['foto','video','anatomia'])blobs.push([chaveMidiaGrupo(g.nome,tipo,ei),await obterFoto(`${tipo}-${di}-${gi}-${ei}`)]);
+  // Copia vídeos adicionais para a biblioteca, preservando a ordem por aba.
+  const presentes=new Set();
+  for(let ei=0;ei<g.ex.length;ei++)for(const ref of referenciasVideosExtras(g.ex[ei])){
+   const destino=idVideoExtraBiblioteca(g.nome,ei,ref.indice,ref.token);
+   presentes.add(destino);
+   blobs.push([destino,await obterFoto(idVideoExtra(di+'-'+gi+'-'+ei,ref.indice,ref.token))]);
+  }
   for(const [key,blob] of blobs){if(blob)await guardarFoto(key,blob);else await excluirFoto(key)}
   for(let ei=g.ex.length;ei<(anterior?.quantidade||0);ei++)for(const tipo of ['foto','video','anatomia'])await excluirFoto(chaveMidiaGrupo(g.nome,tipo,ei));
+  for(let ei=0;ei<(anterior?.grupo?.ex?.length||0);ei++)for(const ref of referenciasVideosExtras(anterior.grupo.ex[ei])){
+   const antigo=idVideoExtraBiblioteca(g.nome,ei,ref.indice,ref.token);
+   if(!presentes.has(antigo))await excluirFoto(antigo);
+  }
  }catch(err){console.warn('Não foi possível atualizar todas as mídias da biblioteca',err)}
  salvarBiblioteca(b);
 }
@@ -956,6 +1085,18 @@ async function aplicarModelo(di,gi,modelo){
   const dst=`${tipo}-${di}-${gi}-${ei}`;
   const src=ei>=novo.ex.length?null:modelo.fromLib?chaveMidiaGrupo(modelo.nome,tipo,ei):modelo.di!==undefined?`${tipo}-${modelo.di}-${modelo.gi}-${ei}`:null;
   tarefas.push({dst,blob:src?await obterFoto(src):null});
+ }
+ // Captura todos os novos vídeos antes de apagar qualquer dado do grupo de destino.
+ const idsExtrasNovos=new Set();
+ for(let ei=0;ei<novo.ex.length;ei++)for(const ref of referenciasVideosExtras(novo.ex[ei])){
+  const dst=idVideoExtra(di+'-'+gi+'-'+ei,ref.indice,ref.token);
+  const src=modelo.fromLib?idVideoExtraBiblioteca(modelo.nome,ei,ref.indice,ref.token):modelo.di!==undefined?idVideoExtra(modelo.di+'-'+modelo.gi+'-'+ei,ref.indice,ref.token):null;
+  idsExtrasNovos.add(dst);
+  tarefas.push({dst,blob:src?await obterFoto(src):null});
+ }
+ for(let ei=0;ei<anterior.ex.length;ei++)for(const ref of referenciasVideosExtras(anterior.ex[ei])){
+  const dst=idVideoExtra(di+'-'+gi+'-'+ei,ref.indice,ref.token);
+  if(!idsExtrasNovos.has(dst))tarefas.push({dst,blob:null});
  }
  for(const t of tarefas){if(t.blob)await guardarFoto(t.dst,t.blob);else await excluirFoto(t.dst)}
  dados[di].grupos[gi]=novo;salvar();render();
