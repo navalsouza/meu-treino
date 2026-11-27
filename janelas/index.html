@@ -1314,10 +1314,10 @@ function moverFicha(indice,direcao){
 }
 function alternarPausaFicha(indice){
  if(fichasAlterando)return;
- const f=dados[indice];
+ const f=dados[indice],eraAtual=posicaoAtual()===indice;
  if(!f.pausada&&fichasAtivas().length<=1){alert('Mantenha pelo menos uma ficha ativa.');return}
  f.pausada=!f.pausada;
- if(f.pausada&&posicaoAtual()===indice)localStorage.setItem(CICLO_KEY,String(indiceSeguinteAtivo(indice)));
+ if(f.pausada&&eraAtual)localStorage.setItem(CICLO_KEY,String(indiceSeguinteAtivo(indice)));
  salvar();render();
 }
 function renomearFicha(indice){
@@ -1330,24 +1330,18 @@ function renomearFicha(indice){
 }
 function criarFichaVazia(){
  if(fichasAlterando||dados.length>=10)return;
- const ficha={uid:novoIdFicha(),_fonteUID:dados[0].uid,dia:'Ficha nova',sigla:String(dados.length+1),nomePersonalizado:'Ficha em branco',aberto:false,pausada:false,grupos:[]};
- // Não reaproveitar mídias na ficha vazia.
- const novas=[...dados,ficha];
- const ultimo=dados.length;
- (async()=>{
-  // Uma ficha vazia não ocupa nenhuma posição de mídia anterior.
-  const id=ficha.uid;
-  delete ficha._fonteUID;
-  const backup=localStorage.getItem(KEY);
-  try{
-   localStorage.setItem(KEY,JSON.stringify(novas));
-   dados=novas;vistaTreino=ultimo;salvar();render();
-   document.getElementById('gerenciadorFichasStatus').textContent='✓ Ficha em branco criada.';
-  }catch(err){
-   if(backup!==null)localStorage.setItem(KEY,backup);
-   alert('Não foi possível criar a ficha: '+err.message);
-  }
- })();
+ const ficha={uid:novoIdFicha(),dia:'Ficha nova',sigla:String(dados.length+1),nomePersonalizado:'Ficha em branco',aberto:false,pausada:false,grupos:[]};
+ const anteriores=dados,novas=[...dados,ficha],backup=localStorage.getItem(KEY);
+ try{
+  localStorage.setItem(KEY,JSON.stringify(novas));
+  dados=novas;vistaTreino=novas.length-1;
+  salvar();render();
+  document.getElementById('gerenciadorFichasStatus').textContent='✓ Ficha em branco criada.';
+ }catch(err){
+  dados=anteriores;
+  if(backup!==null)localStorage.setItem(KEY,backup);else localStorage.removeItem(KEY);
+  alert('Não foi possível criar a ficha: '+err.message);
+ }
 }
 function renderGerenciadorFichas(){
  const host=document.getElementById('gerenciadorFichasLista');
