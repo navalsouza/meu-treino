@@ -172,7 +172,29 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 .day-controls{margin:14px 0 4px}.day-controls button{width:100%}.day-edit-tools{border:1px solid #2a3850;border-radius:11px;margin:12px 0 0;padding:0 10px}.day-edit-tools>summary{cursor:pointer;padding:11px 2px;color:#96a9c5;font-size:12px;font-weight:650}.seq-comandos:has(#abrirProximo[hidden]){grid-template-columns:1fr}
 .app-footer{text-align:center;color:#718097;font-size:11px;margin-top:32px}
 .small{font-size:12px;color:var(--muted)}
+
 @media(max-width:370px){.seq-comandos{grid-template-columns:1fr}.app-shell{padding-inline:10px}.app-top h1{font-size:27px}}
+/* Fichas de fases de hipertrofia: criar, duplicar, ordenar e pausar */
+.treino-tab.pausada{opacity:.49;border-style:dashed}
+.treino-tab.pausada::before{content:'Ⅱ';font-size:9px;position:absolute;top:0;left:4px}
+.fichas-gerenciar{margin-top:12px;background:#101a2d;border:1px solid #344762;border-radius:13px;overflow:hidden}
+.fichas-gerenciar>summary{padding:13px 12px;cursor:pointer;font-size:13px;font-weight:750;color:#d6e6ff}
+.fichas-gerenciar[open]>summary{border-bottom:1px solid #334155}
+.fichas-gerenciar-inner{padding:10px;display:grid;gap:9px}
+.fichas-gerenciar-linha{border:1px solid #324257;border-radius:10px;padding:9px;background:#141f31;display:grid;gap:8px}
+.fichas-gerenciar-linha.is-paused{opacity:.7}
+.fichas-gerenciar-label{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.fichas-gerenciar-label strong{font-size:12px}
+.fichas-gerenciar-label small{font-size:11px;color:#a2b3cc;overflow-wrap:anywhere;text-align:right}
+.fichas-gerenciar-botoes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.fichas-gerenciar-botoes button{padding:8px 2px;font-size:11px;min-width:0;border-radius:8px;background:#263951}
+.fichas-gerenciar-botoes button.acao-pausar{background:#244967}
+.fichas-gerenciar-botoes button:disabled{opacity:.34}
+.fichas-gerenciar-rodape{display:grid;grid-template-columns:1fr;gap:5px}
+.fichas-gerenciar-rodape button{font-size:12px;padding:11px}
+.fichas-gerenciar-ajuda{color:#a0b2cf;font-size:11px;line-height:1.5;margin:0}
+.fichas-gerenciar-status{font-size:12px;color:#86efac;min-height:16px}
+
 
 
 /* Sincronização Drive: recolhida em Ajustes; um status breve na barra superior. */
@@ -251,6 +273,15 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
  <h2 id="proximoTitulo">Treino A</h2>
  <div id="treinoTabs" class="treino-tabs" role="group" aria-label="Escolher treino"></div>
  <div class="seq-comandos"><button id="abrirProximo" type="button" class="alt">Ir para o atual</button><button id="avancarTreino" type="button">✓ Concluir e avançar</button></div>
+ <details class="fichas-gerenciar" id="gerenciadorFichas">
+  <summary id="gerenciadorFichasTitulo">📋 Gerenciar fichas (até 10)</summary>
+  <div class="fichas-gerenciar-inner">
+   <p class="fichas-gerenciar-ajuda">Duplique uma ficha com exercícios, séries, cargas, fotos e vídeos. Reorganize com ↑ ↓ e pause fichas fora da fase atual. Uma ficha pausada permanece salva, mas não entra no ciclo.</p>
+   <div id="gerenciadorFichasLista"></div>
+   <div class="fichas-gerenciar-rodape"><button id="criarFichaVazia" type="button">+ Criar ficha em branco</button></div>
+   <div class="fichas-gerenciar-status" id="gerenciadorFichasStatus" role="status" aria-live="polite"></div>
+  </div>
+ </details>
 </section>
 <section id="painelAjustes" class="settings-panel" hidden aria-label="Configurações e backup">
  <details class="sync-panel"><summary style="font-size:16px;font-weight:800;cursor:pointer">☁ Sincronização com Google Drive</summary>
@@ -372,6 +403,18 @@ const padrao=[
 ]}
 ];
 let dados;try{dados=JSON.parse(localStorage.getItem(KEY))||JSON.parse(JSON.stringify(padrao))}catch{dados=JSON.parse(JSON.stringify(padrao))}
+function novoIdFicha(){return 'f_'+(crypto.randomUUID?.()||Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12))}
+function garantirIdsFichas(){
+ const usados=new Set();let alterado=false;
+ for(const ficha of dados){
+  if(typeof ficha.uid!=='string'||!ficha.uid.trim()||usados.has(ficha.uid)){
+   ficha.uid=novoIdFicha();alterado=true;
+  }
+  usados.add(ficha.uid);
+ }
+ if(alterado)localStorage.setItem(KEY,JSON.stringify(dados));
+}
+garantirIdsFichas();
 if(!localStorage.getItem(KEY))localStorage.setItem(PLANO_KEY,PLANO_ID);
 // Registros de carga/repetições são a referência permanente de cada exercício.
 // As marcações S1/S2/S3 representam apenas a sessão do dia corrente.
@@ -1151,23 +1194,212 @@ async function salvarTreinoDia(di,botao,msg){
  finally{botao.disabled=false}
 }
 
+
+// Gerenciador de fichas: os IDs de mídia existentes usam o índice do dia.
+// Ao mover ou copiar fichas, remapeamos todos os blobs numa única transação
+// do IndexedDB, para nunca misturar mídias de exercícios diferentes.
+let fichasAlterando=false;
+function fichasAtivas(){return dados.map((f,i)=>f.pausada?-1:i).filter(i=>i>=0)}
+function indiceSeguinteAtivo(indice){
+ if(!dados.length)return 0;
+ for(let passo=1;passo<=dados.length;passo++){
+  const i=(indice+passo)%dados.length;
+  if(!dados[i].pausada)return i;
+ }
+ return indice;
+}
+function midiaPosicional(id,limite){
+ const m=String(id).match(/^((?:foto|video|anatomia)(?:-alt)?-)(\d+)(-\d+-\d+(?:-\d+)?(?:-clip-[a-zA-Z0-9_-]+)?)$/);
+ if(!m)return null;
+ const i=Number(m[2]);
+ return Number.isInteger(i)&&i>=0&&i<limite?{prefixo:m[1],dia:i,sufixo:m[3]}:null;
+}
+async function migrarMidiasDeFichas(antigas,novas){
+ if(midiaSomenteLocal||chavesMidiaLocal().length)throw new Error('Há mídias em armazenamento de compatibilidade. Exporte um backup e restaure no modo HTTPS antes de reorganizar as fichas.');
+ const db=await bancoFotos();
+ const guardadas=await lerTodasAsMidias();
+ const originais=guardadas.filter(({id})=>midiaPosicional(id,antigas.length));
+ const porDia=new Map();
+ for(const item of originais){
+  const m=midiaPosicional(item.id,antigas.length);
+  if(!porDia.has(m.dia))porDia.set(m.dia,[]);
+  porDia.get(m.dia).push({m,blob:item.blob,id:item.id});
+ }
+ const origens=new Map(antigas.map((f,i)=>[f.uid,i])),destinos=new Map();
+ novas.forEach((f,i)=>{
+  const o=origens.get(f._fonteUID||f.uid);
+  if(o===undefined)throw new Error('Não foi possível identificar a ficha de origem.');
+  for(const item of porDia.get(o)||[])destinos.set(item.m.prefixo+i+item.m.sufixo,item.blob);
+ });
+ const executar=(apagar,gravar)=>new Promise((resolve,reject)=>{
+  let tx;
+  try{
+   tx=db.transaction(FOTO_STORE,'readwrite');const store=tx.objectStore(FOTO_STORE);
+   for(const id of apagar)store.delete(id);
+   for(const [id,blob] of gravar)store.put(blob,id);
+  }catch(err){reject(err);return}
+  tx.oncomplete=()=>resolve();
+  tx.onerror=()=>reject(tx.error||new Error('Erro no armazenamento'));
+  tx.onabort=()=>reject(tx.error||new Error('Espaço insuficiente para duplicar as mídias'));
+ });
+ await executar(originais.map(x=>x.id),destinos);
+ return async()=>{
+  await executar([...new Set([...originais.map(x=>x.id),...destinos.keys()])],originais.map(x=>[x.id,x.blob]));
+ };
+}
+async function reorganizarFichas(novas,uidSelecionada){
+ if(fichasAlterando)return;
+ if(novas.length<1||novas.length>10)throw new Error('São permitidas de 1 a 10 fichas.');
+ fichasAlterando=true;
+ const anterior=dados,oldJson=localStorage.getItem(KEY),oldCycle=localStorage.getItem(CICLO_KEY);
+ const atualUid=dados[posicaoAtual()]?.uid;
+ const status=document.getElementById('gerenciadorFichasStatus');
+ status.textContent='Preservando exercícios, imagens e vídeos...';
+ let reverterMidias=null;
+ try{
+  const uidNovo=new Set(novas.map(f=>f.uid));
+  if(uidNovo.size!==novas.length)throw new Error('Identificadores de ficha duplicados.');
+  let proximo=novas.findIndex(f=>f.uid===atualUid);
+  if(proximo<0)proximo=0;
+  if(novas[proximo].pausada){
+   const proximoAtivo=novas.findIndex(f=>!f.pausada);
+   if(proximoAtivo<0)throw new Error('Pelo menos uma ficha precisa continuar ativa.');
+   proximo=proximoAtivo;
+  }
+  reverterMidias=await migrarMidiasDeFichas(anterior,novas);
+  const grava=novas.map(f=>{const n={...f};delete n._fonteUID;return n});
+  try{
+   localStorage.setItem(KEY,JSON.stringify(grava));
+   localStorage.setItem(CICLO_KEY,String(proximo));
+  }catch(err){
+   if(reverterMidias)await reverterMidias();
+   if(oldJson!==null)localStorage.setItem(KEY,oldJson);
+   if(oldCycle!==null)localStorage.setItem(CICLO_KEY,oldCycle);else localStorage.removeItem(CICLO_KEY);
+   throw err;
+  }
+  dados=grava;
+  vistaTreino=Math.max(0,grava.findIndex(f=>f.uid===uidSelecionada));
+  salvar();
+  window.dispatchEvent(new Event('meu-treino-midias-alteradas'));
+  render();
+  status.textContent='✓ Fichas reorganizadas com mídias e registros preservados.';
+ }catch(err){
+  status.textContent='Não foi possível concluir: '+err.message;
+  throw err;
+ }finally{fichasAlterando=false}
+}
+function duplicarFicha(indice){
+ if(fichasAlterando)return;
+ if(dados.length>=10){alert('Limite de 10 fichas atingido. Pause ou reutilize uma ficha existente.');return}
+ const fonte=dados[indice],copia=JSON.parse(JSON.stringify(fonte));
+ copia.uid=novoIdFicha();copia._fonteUID=fonte.uid;copia.sigla=String(dados.length+1);
+ copia.nomePersonalizado='Cópia da ficha '+(indice+1);copia.pausada=false;copia.aberto=false;
+ for(const g of copia.grupos||[]){
+  g.aberto=false;
+  for(const e of g.ex||[]){
+   e.aberto=false;e.sessaoData=dataLocal();
+   for(const serie of e.sets||[])serie.ok=false;
+   for(const rec of Object.values(e.registrosOpcoes||{}))for(const serie of rec.sets||[])serie.ok=false;
+  }
+ }
+ // A cópia fica no fim; use as setas para posicioná-la no ciclo.
+ reorganizarFichas([...dados,copia],copia.uid).catch(err=>console.warn(err));
+}
+function moverFicha(indice,direcao){
+ const outra=indice+direcao;
+ if(fichasAlterando||outra<0||outra>=dados.length)return;
+ const copia=dados.slice(),uid=copia[indice].uid;
+ [copia[indice],copia[outra]]=[copia[outra],copia[indice]];
+ reorganizarFichas(copia,uid).catch(err=>console.warn(err));
+}
+function alternarPausaFicha(indice){
+ if(fichasAlterando)return;
+ const f=dados[indice];
+ if(!f.pausada&&fichasAtivas().length<=1){alert('Mantenha pelo menos uma ficha ativa.');return}
+ f.pausada=!f.pausada;
+ if(f.pausada&&posicaoAtual()===indice)localStorage.setItem(CICLO_KEY,String(indiceSeguinteAtivo(indice)));
+ salvar();render();
+}
+function renomearFicha(indice){
+ const f=dados[indice];
+ const novo=prompt('Nome desta ficha (ex.: Foco peitoral e ombros):',f.nomePersonalizado||f.dia||'');
+ if(novo===null)return;
+ const nome=novo.trim();if(!nome)return;
+ f.nomePersonalizado=nome.slice(0,90);
+ salvar();render();
+}
+function criarFichaVazia(){
+ if(fichasAlterando||dados.length>=10)return;
+ const ficha={uid:novoIdFicha(),_fonteUID:dados[0].uid,dia:'Ficha nova',sigla:String(dados.length+1),nomePersonalizado:'Ficha em branco',aberto:false,pausada:false,grupos:[]};
+ // Não reaproveitar mídias na ficha vazia.
+ const novas=[...dados,ficha];
+ const ultimo=dados.length;
+ (async()=>{
+  // Uma ficha vazia não ocupa nenhuma posição de mídia anterior.
+  const id=ficha.uid;
+  delete ficha._fonteUID;
+  const backup=localStorage.getItem(KEY);
+  try{
+   localStorage.setItem(KEY,JSON.stringify(novas));
+   dados=novas;vistaTreino=ultimo;salvar();render();
+   document.getElementById('gerenciadorFichasStatus').textContent='✓ Ficha em branco criada.';
+  }catch(err){
+   if(backup!==null)localStorage.setItem(KEY,backup);
+   alert('Não foi possível criar a ficha: '+err.message);
+  }
+ })();
+}
+function renderGerenciadorFichas(){
+ const host=document.getElementById('gerenciadorFichasLista');
+ if(!host)return;
+ document.getElementById('gerenciadorFichasTitulo').textContent='📋 Gerenciar fichas ('+dados.length+'/10 · '+fichasAtivas().length+' ativas)';
+ const botaoNovo=document.getElementById('criarFichaVazia');
+ botaoNovo.disabled=dados.length>=10;
+ botaoNovo.onclick=criarFichaVazia;
+ host.replaceChildren();
+ dados.forEach((f,i)=>{
+  const linha=document.createElement('div');linha.className='fichas-gerenciar-linha'+(f.pausada?' is-paused':'');
+  const topo=document.createElement('div');topo.className='fichas-gerenciar-label';
+  const nome=document.createElement('strong');nome.textContent='Ficha '+(i+1)+(f.pausada?' · PAUSADA':' · ATIVA');
+  const apelido=document.createElement('small');apelido.textContent=f.nomePersonalizado||f.dia||'Sem nome';
+  topo.append(nome,apelido);
+  const acoes=document.createElement('div');acoes.className='fichas-gerenciar-botoes';
+  const bot=(label,action,disabled,title)=>{
+   const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title||label;
+   b.disabled=!!disabled;b.onclick=action;acoes.appendChild(b);return b;
+  };
+  bot('↑',()=>moverFicha(i,-1),i===0,'Mover para cima');
+  bot('↓',()=>moverFicha(i,1),i===dados.length-1,'Mover para baixo');
+  bot('Copiar',()=>duplicarFicha(i),dados.length>=10,'Duplicar ficha completa');
+  const p=bot(f.pausada?'Ativar':'Pausar',()=>alternarPausaFicha(i),!f.pausada&&fichasAtivas().length<=1,'Ativar ou pausar ficha');
+  p.classList.add('acao-pausar');
+  bot('Nome',()=>renomearFicha(i),false,'Renomear ficha');
+  linha.append(topo,acoes);host.appendChild(linha);
+ });
+}
+
 // A aba escolhida não altera o próximo treino do ciclo.
 let vistaTreino=posicaoAtual();
 function render(){
+ garantirIdsFichas();
  prepararSessoes();
  const app=document.getElementById('app');app.replaceChildren();
  if(vistaTreino>=dados.length||vistaTreino<0)vistaTreino=posicaoAtual();
  const tabs=document.getElementById('treinoTabs');tabs.replaceChildren();
  dados.forEach((dia,di)=>{
-   const bot=document.createElement('button');bot.type='button';bot.className='treino-tab'+(di===vistaTreino?' selecionado':'')+(di===posicaoAtual()?' atual':'');
-   bot.textContent=dia.sigla||String(di+1);bot.title=dia.dia;bot.setAttribute('aria-pressed',String(di===vistaTreino));
+   const bot=document.createElement('button');bot.type='button';
+   bot.className='treino-tab'+(di===vistaTreino?' selecionado':'')+(di===posicaoAtual()?' atual':'')+(dia.pausada?' pausada':'');
+   bot.textContent=String(di+1);bot.title=(dia.nomePersonalizado||dia.dia)+(dia.pausada?' (pausada)':'');
+   bot.setAttribute('aria-label','Ficha '+(di+1)+(dia.pausada?' pausada':''));
+   bot.setAttribute('aria-pressed',String(di===vistaTreino));
    bot.onclick=()=>{vistaTreino=di;render();document.getElementById('app').scrollIntoView({behavior:'smooth',block:'start'})};tabs.appendChild(bot);
  });
+ renderGerenciadorFichas();
  const dia=dados[vistaTreino];if(!dia){atualizarPainelCiclo();return}
  const titulo=document.createElement('div');titulo.className='day-heading';
  const feitas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.sets.filter(s=>s.ok).length,0),0);
  const previstas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.series,0),0);
- titulo.innerHTML=`<div><h2>Ficha ${esc(dia.sigla||vistaTreino+1)}</h2><p>${esc(dia.grupos.map(g=>g.nome).join(' · '))}</p></div><span class="day-counter">${feitas}/${previstas} séries</span>`;
+ titulo.innerHTML=`<div><h2>Ficha ${vistaTreino+1}${dia.pausada?' · Pausada':''}</h2><p>${dia.nomePersonalizado?esc(dia.nomePersonalizado)+' · ':''}${esc(dia.grupos.map(g=>g.nome).join(' · ')||'Sem grupos cadastrados')}</p></div><span class="day-counter">${feitas}/${previstas} séries</span>`;
  app.appendChild(titulo);
  const c=document.createElement('section');c.className='card';
  dia.grupos.forEach((g,gi)=>{
@@ -1195,18 +1427,22 @@ function render(){
  renderRelogios();atualizarPainelCiclo();
 }
 // Plano revisado: preserva registros anteriores, mídias e o histórico de fichas.
-function posicaoAtual(){const n=Number(localStorage.getItem(CICLO_KEY));return Number.isInteger(n)&&n>=0&&n<dados.length?n:0}
+function posicaoAtual(){
+ const n=Number(localStorage.getItem(CICLO_KEY));
+ if(Number.isInteger(n)&&n>=0&&n<dados.length&&!dados[n].pausada)return n;
+ const primeiro=fichasAtivas()[0];return primeiro===undefined?0:primeiro;
+}
 function atualizarPainelCiclo(){
- const p=posicaoAtual(),d=dados[p];
- document.getElementById('proximoTitulo').textContent=d?.dia||'Treino A';
- document.getElementById('proximoDescricao').textContent=`${p+1} de ${dados.length} · Volte de onde parou`;
+ const p=posicaoAtual(),d=dados[p],ativas=fichasAtivas();
+ document.getElementById('proximoTitulo').textContent=d?.nomePersonalizado||d?.dia||'Ficha 1';
+ document.getElementById('proximoDescricao').textContent=`${ativas.indexOf(p)+1} de ${ativas.length} ativas · ${dados.length} cadastradas`;
  document.getElementById('abrirProximo').hidden=vistaTreino===p;
 }
 document.getElementById('abrirProximo').onclick=()=>{
  vistaTreino=posicaoAtual();render();document.getElementById('app').scrollIntoView({behavior:'smooth',block:'start'});
 };
 document.getElementById('avancarTreino').onclick=()=>{
- const atual=posicaoAtual(),prox=(atual+1)%dados.length;
+ const atual=posicaoAtual(),prox=indiceSeguinteAtivo(atual);
  localStorage.setItem(CICLO_KEY,String(prox));vistaTreino=prox;
  salvar();render();window.scrollTo({top:0,behavior:'smooth'});
 };
