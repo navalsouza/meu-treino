@@ -19,6 +19,11 @@ input,textarea{width:100%;box-sizing:border-box;background:#0b1220;border:1px so
 button,.file{background:#2563eb;color:white;border:0;border-radius:9px;padding:9px 12px;cursor:pointer}
 .alt{background:#334155}.done{background:#16a34a}.danger{background:#991b1b}
 .timerbox{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;margin-top:10px;padding:9px;background:#0b1220;border-radius:10px}.timerbox .clock{font-size:clamp(22px,6vw,30px)}.timerbox .start{min-width:0;flex:1;padding:10px 7px;white-space:nowrap}.timerbox .reset{padding:10px 10px;white-space:nowrap}.timerbox .timearea{flex:0 0 auto;min-width:0}
+.desc-opcoes{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0 2px}
+.desc-opcoes button{font-size:12px;font-weight:650;padding:9px 6px;border:1px solid #385273;background:#20314a;color:#b9cce5;min-width:0}
+.desc-opcoes button.ativo{color:white;background:#2158bb;border-color:#80acff}
+.desc-ajuda{color:#98aeca;font-size:11px;margin:5px 1px 6px;line-height:1.4}
+
 .clock{font-size:28px;font-weight:800;min-width:90px}.small{color:#94a3b8;font-size:12px}
 video{width:100%;max-height:360px;margin-top:8px;border-radius:10px;background:#000}
 .fotoarea{margin-top:12px;background:#0b1220;border:1px dashed #475569;border-radius:12px;padding:12px}
@@ -296,6 +301,12 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
  </details>
 
  <div class="settings-head">Configurações e segurança <span class="small">Alterações são salvas automaticamente</span></div>
+ <section class="backup-panel" aria-label="Descansos recomendados">
+  <h2>Descansos para hipertrofia</h2>
+  <p class="small">Entre séries e entre exercícios são configurados separadamente. Exercícios compostos exigem mais descanso; você pode ajustar cada aba do exercício.</p>
+  <button id="reaplicarDescansos" type="button" class="alt">↻ Reaplicar descansos recomendados às fichas</button>
+  <div id="descansosStatus" class="small" role="status" aria-live="polite"></div>
+ </section>
  <section class="backup-panel" aria-label="Backup dos seus treinos">
   <h2>Backup dos dados <span class="small" style="color:#86efac;font-size:12px">v2.3 · abas personalizadas</span></h2><p class="small">Exporte antes de atualizar ou trocar de celular. Inclui cargas, séries e imagens.</p>
   <div class="backup-commands"><button id="exportarBackup" type="button">↓ Exportar backup</button><button id="importarBackup" type="button" class="alt">↑ Restaurar</button></div>
@@ -314,7 +325,51 @@ button,input,textarea{font-family:inherit}button{touch-action:manipulation}
 <script>
 const KEY='treino_cascata_timer_v1';
 const LIBKEY='treino_biblioteca_grupos_v1';
-function ex(nome,series,reps,desc){return {nome,series,reps,carga:'',desc,obs:'',video:null,sets:Array.from({length:series},()=>({kg:'',reps:'',ok:false}))}}
+
+// Intervalos sugeridos para hipertrofia: servem como ponto de partida, não regras fixas.
+// Exercícios personalizados usam nome e grupo para escolher tempos conservadores.
+const DESCANSO_VERSAO=1;
+function recomendarDescanso(nome,grupo=''){
+ const n=String(nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const g=String(grupo||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const regra=(series,troca,tipo)=>({series,troca,tipo});
+ if(/pallof|abdomin|crunch|prancha|abdominal|infra\b|supra\b|core|isometri|rotacao de tronco/.test(n))return regra(75,60,'abdômen e estabilidade');
+ if(/pulldown com bracos estendidos|pullover|crucifixo|crossover|peck deck|voador|face pull|elevacao lateral|elevacao frontal|elevacao posterior|rosca|triceps|kickback|coice|extensora|flexora|abdutora|adutora|panturrilha|encolhimento|antebraco|trapezio isolad/.test(n))return regra(90,90,'exercício de isolamento');
+ if(/agach|hack|terra|stiff|romeno|leg ?press|afundo|bulgar|passada|levantamento|elevacao pelvica|hip thrust/.test(n))return regra(180,150,'composto exigente de membros inferiores');
+ if(/supino|desenvolvimento|militar|shoulder press|dumbbell press|remada|puxada|barra fixa|barra livre|puxador|pulldown|paralela|mergulho|flexao de braco/.test(n))return regra(150,120,'composto de membros superiores');
+ if(/abdomen|abdominal|core/.test(g))return regra(75,60,'abdômen e estabilidade');
+ if(/panturrilha|triceps|biceps|adutor|abdutor/.test(g))return regra(90,90,'exercício de isolamento');
+ if(/quadriceps|posterior|gluteo/.test(g))return regra(150,120,'membros inferiores');
+ return regra(120,90,'exercício geral');
+}
+function descansoDaOpcao(e,nome,grupo,indice){
+ const base=recomendarDescanso(nome,grupo);
+ const custom=indice===0?null:e.descansosOpcoes?.[String(indice)];
+ const series=indice===0?Number(e.desc):Number(custom?.series);
+ const troca=indice===0?Number(e.descTroca):Number(custom?.troca);
+ return {series:Number.isFinite(series)&&series>=0&&(indice===0||custom?.series!==undefined)?series:base.series,
+         troca:Number.isFinite(troca)&&troca>=0&&(indice===0||custom?.troca!==undefined)?troca:base.troca,
+         tipo:base.tipo};
+}
+function revisarDescansosCadastrados(forcar=false){
+ let mudou=false,quantidade=0;
+ for(const dia of dados||[])for(const grupo of dia.grupos||[])for(const e of grupo.ex||[]){
+  if(!forcar&&e.descansoPlanoVersao===DESCANSO_VERSAO)continue;
+  const tempos=recomendarDescanso(e.nome,grupo.nome);
+  if(e.descAntesRevisao===undefined)e.descAntesRevisao=e.desc;
+  e.desc=tempos.series;e.descTroca=tempos.troca;
+  if(forcar)e.descansosOpcoes={};
+  e.descansoPlanoVersao=DESCANSO_VERSAO;
+  mudou=true;quantidade++;
+ }
+ if(mudou)salvar();
+ return quantidade;
+}
+
+function ex(nome,series,reps,desc){
+ const tempo=recomendarDescanso(nome);
+ return {nome,series,reps,carga:'',desc:tempo.series,descTroca:tempo.troca,descansoPlanoVersao:DESCANSO_VERSAO,obs:'',video:null,sets:Array.from({length:series},()=>({kg:'',reps:'',ok:false}))};
+}
 const PLANO_ID='hipertrofia-ciclo-abdec-2026-11-23';
 const PLANO_KEY='treino_plano_ativo_v2';
 const CICLO_KEY='treino_ciclo_posicao_v2';
@@ -434,7 +489,7 @@ function prepararSessoes(){
  if(alterado)salvar();
 }
 prepararSessoes();
-let T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null};
+let T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null,tipo:'series'};
 // IndexedDB é a opção principal. Em Android (content://, alguns leitores de HTML),
 // pode ser bloqueado; usamos localStorage para imagens COMPACTADAS como compatibilidade.
 // Nunca afirmamos que essa opção tem a mesma capacidade/garantia do IndexedDB.
@@ -556,11 +611,24 @@ function validarImagemAnatomica(file){
 function salvar(){localStorage.setItem(KEY,JSON.stringify(dados))}
 function fmt(s){s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
 function beep(){try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=900;g.gain.value=.15;o.start();setTimeout(()=>o.stop(),300)}catch{} if(navigator.vibrate)navigator.vibrate([300,150,500])}
-function iniciar(id,seg){clearInterval(T.intervalo);T={id,rest:+seg||0,rodando:true,ultimo:Date.now(),intervalo:null};T.intervalo=setInterval(tick,250);renderRelogios()}
+function iniciar(id,seg,tipo='series'){clearInterval(T.intervalo);T={id,rest:+seg||0,rodando:true,ultimo:Date.now(),intervalo:null,tipo};T.intervalo=setInterval(tick,250);renderRelogios()}
 function tick(){if(!T.rodando)return;const n=Date.now();T.rest-=(n-T.ultimo)/1000;T.ultimo=n;if(T.rest<=0){T.rest=0;T.rodando=false;clearInterval(T.intervalo);beep()}renderRelogios()}
 function pausa(){if(!T.id)return;T.rodando=!T.rodando;T.ultimo=Date.now();renderRelogios()}
-function zerar(){clearInterval(T.intervalo);T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null};renderRelogios()}
-function renderRelogios(){document.querySelectorAll('[data-timer]').forEach(x=>{const c=x.querySelector('.clock'),botao=x.querySelector('.start');const ativo=x.dataset.timer===T.id;c.textContent=ativo?fmt(T.rest):fmt(+x.dataset.desc||0);botao.textContent=ativo?(T.rodando?'⏸ Pausar':'▶ Continuar'):'▶ Iniciar';botao.setAttribute('aria-label',ativo?(T.rodando?'Pausar descanso':'Continuar descanso'):'Iniciar descanso');})}
+function zerar(){clearInterval(T.intervalo);T={id:null,rest:0,rodando:false,ultimo:0,intervalo:null,tipo:'series'};renderRelogios()}
+function selecionarDescanso(id,tipo,seg){clearInterval(T.intervalo);T={id,rest:Math.max(0,+seg||0),rodando:false,ultimo:0,intervalo:null,tipo};renderRelogios()}
+function renderRelogios(){
+ document.querySelectorAll('[data-timer]').forEach(x=>{
+  const c=x.querySelector('.clock'),botao=x.querySelector('.start'),ativo=x.dataset.timer===T.id;
+  const tipo=ativo&&T.tipo==='troca'?'troca':'series';
+  const seg=+(tipo==='troca'?x.dataset.troca:x.dataset.desc)||0;
+  c.textContent=ativo?fmt(T.rest):fmt(seg);
+  const txt=x.querySelector('.modo-descanso-label');if(txt)txt.textContent=tipo==='troca'?'Próximo exercício':'Entre séries';
+  const opts=x.nextElementSibling;
+  if(opts?.classList.contains('desc-opcoes'))opts.querySelectorAll('.desc-modo').forEach(b=>{const selected=b.dataset.modo===tipo;b.classList.toggle('ativo',selected);b.setAttribute('aria-pressed',String(selected))});
+  botao.textContent=ativo?(T.rodando?'⏸ Pausar':T.rest===0?'▶ Reiniciar':'▶ Continuar'):'▶ Iniciar';
+  botao.setAttribute('aria-label',ativo?(T.rodando?'Pausar descanso':'Continuar descanso'):'Iniciar descanso');
+ });
+}
 function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
 
@@ -770,6 +838,7 @@ function ativarAlternativa(e,indice,opcoes){
 function renderEx(e,di,gi,ei){
  const id=di+'-'+gi+'-'+ei;
  const opcoes=opcoesExercicio(e),ativa=indiceOpcao(e,opcoes);
+ const tempoDescanso=descansoDaOpcao(e,opcoes[ativa].nome,dados[di].grupos[gi].nome,ativa);
  while(e.sets.length<e.series)e.sets.push({kg:'',reps:'',ok:false});
  e.sets=e.sets.slice(0,e.series);
  const d=document.createElement('details');d.className='exercise';
@@ -809,17 +878,23 @@ function renderEx(e,di,gi,ei){
   <div class="series-title"><b>Minhas séries</b><span>Toque em S1 para concluir</span></div>
   <div class="series-head"><span>Série</span><span>Carga (kg)</span><span>Reps</span></div>
   ${e.sets.map((s,i)=>`<div class="series" data-s="${i}"><button type="button" class="${s.ok?'done':'alt'} concluir" aria-pressed="${s.ok}" aria-label="${s.ok?'Desmarcar':'Concluir'} série ${i+1}">${s.ok?'✓ S'+(i+1):'S'+(i+1)}</button><input class="kg" type="number" step="0.5" placeholder="kg" aria-label="Carga da série ${i+1} em kg" value="${esc(s.kg)}"><input class="rp" type="number" placeholder="reps" aria-label="Repetições da série ${i+1}" value="${esc(s.reps)}"></div>`).join('')}
-  <div class="timerbox" data-timer="${id}" data-desc="${e.desc}">
-   <div class="timearea"><div class="small">Descanso</div><div class="clock">${T.id===id?fmt(T.rest):fmt(e.desc)}</div></div>
-   <button class="start">▶ Iniciar</button><button class="reset">↺</button>
+  <div class="timerbox" data-timer="${id}" data-desc="${tempoDescanso.series}" data-troca="${tempoDescanso.troca}">
+   <div class="timearea"><div class="small modo-descanso-label">Entre séries</div><div class="clock">${T.id===id?fmt(T.rest):fmt(tempoDescanso.series)}</div></div>
+   <button class="start">▶ Iniciar</button><button class="reset" title="Zerar descanso" aria-label="Zerar descanso">↺</button>
   </div>
+  <div class="desc-opcoes" aria-label="Tipo de descanso">
+   <button type="button" class="desc-modo ativo" data-modo="series">Séries · ${fmt(tempoDescanso.series)}</button>
+   <button type="button" class="desc-modo" data-modo="troca">Próx. exercício · ${fmt(tempoDescanso.troca)}</button>
+  </div>
+  <div class="desc-ajuda">Sugestão para ${esc(tempoDescanso.tipo)}. Ajuste em Editar exercício; aumente o descanso se o rendimento cair.</div>
   <details class="exercise-extras"><summary>⚙ Editar exercício e mídias</summary><div class="extras-body">
    <label><div class="small">Nome do exercício</div><input class="nome" value="${esc(e.nome)}"></label>
    <div class="grid">
     <label><div class="small">Séries</div><input class="seriesn" type="number" min="1" value="${e.series}"></label>
     <label><div class="small">Reps alvo</div><input class="repsalvo" value="${esc(e.reps)}"></label>
     <label><div class="small">Carga padrão kg</div><input class="carga" type="number" step="0.5" value="${esc(e.carga)}"></label>
-    <label><div class="small">Descanso seg</div><input class="desc" type="number" min="0" value="${e.desc}"></label>
+    <label><div class="small">Entre séries (seg)</div><input class="desc" type="number" min="0" max="600" value="${tempoDescanso.series}"></label>
+    <label><div class="small">Antes do próximo exercício (seg)</div><input class="desc-troca" type="number" min="0" max="600" value="${tempoDescanso.troca}"></label>
    </div>
    ${htmlFocoExercicio(e,dados[di].grupos[gi].nome)}
    <label><div class="small">Observações</div><textarea class="obs" rows="2">${esc(e.obs)}</textarea></label>
@@ -873,10 +948,28 @@ function renderEx(e,di,gi,ei){
  q('.seriesn').onchange=x=>{e.series=Math.max(1,+x.target.value||1);salvar();render()};
  q('.repsalvo').oninput=x=>{e.reps=x.target.value;salvar()};
  q('.carga').oninput=x=>{e.carga=x.target.value;salvar()};
- q('.desc').oninput=x=>{e.desc=Math.max(0,+x.target.value||0);q('.timerbox').dataset.desc=e.desc;salvar();renderRelogios()};
+ function modificarDescanso(tipo,valor){
+  const tempo=Math.max(0,Math.min(600,Number(valor)||0));
+  if(ativa===0){if(tipo==='series')e.desc=tempo;else e.descTroca=tempo}
+  else{e.descansosOpcoes ||= {};const atual=descansoDaOpcao(e,opcoes[ativa].nome,dados[di].grupos[gi].nome,ativa);
+   e.descansosOpcoes[String(ativa)]={series:tipo==='series'?tempo:atual.series,troca:tipo==='troca'?tempo:atual.troca};
+  }
+  const novos=descansoDaOpcao(e,opcoes[ativa].nome,dados[di].grupos[gi].nome,ativa);
+  q('.timerbox').dataset.desc=novos.series;q('.timerbox').dataset.troca=novos.troca;
+  q('[data-modo="series"]').textContent='Séries · '+fmt(novos.series);
+  q('[data-modo="troca"]').textContent='Próx. exercício · '+fmt(novos.troca);
+  if(T.id===id&&!T.rodando){T.rest=novos[T.tipo==='troca'?'troca':'series']}
+  salvar();renderRelogios();
+ }
+ q('.desc').oninput=x=>modificarDescanso('series',x.target.value);
+ q('.desc-troca').oninput=x=>modificarDescanso('troca',x.target.value);
+ q('.desc-opcoes').querySelectorAll('.desc-modo').forEach(b=>b.onclick=()=>{
+  const tipo=b.dataset.modo;
+  const x=q('.timerbox');selecionarDescanso(id,tipo,+(tipo==='troca'?x.dataset.troca:x.dataset.desc));
+ });
  q('.obs').oninput=x=>{e.obs=x.target.value;salvar()};
  d.querySelectorAll('.series').forEach(r=>{const i=+r.dataset.s,s=e.sets[i];r.querySelector('.kg').oninput=x=>{s.kg=x.target.value;salvar()};r.querySelector('.rp').oninput=x=>{s.reps=x.target.value;salvar()};r.querySelector('.concluir').onclick=()=>{s.ok=!s.ok;salvar();render()}});
- q('.start').onclick=()=>{if(T.id!==id||T.rest<=0)iniciar(id,e.desc);else pausa()};q('.reset').onclick=()=>{if(T.id===id)zerar();else renderRelogios()};
+ q('.start').onclick=()=>{const x=q('.timerbox'),tipo=T.id===id&&T.tipo==='troca'?'troca':'series';const seg=+(tipo==='troca'?x.dataset.troca:x.dataset.desc)||0;if(T.id!==id||T.rest<=0)iniciar(id,seg,tipo);else pausa()};q('.reset').onclick=()=>{if(T.id===id)zerar();else renderRelogios()};
  const anatomiaId=idMidiaOpcao('anatomia',id,ativa);
  const anatPreview=q('.anatomiapreview'),anatPlaceholder=q('.anatomiaplaceholder'),anatBot=q('.anatomiabotoes'),anatAviso=q('.anatomiaaviso');
  let anatUrl=null;
@@ -1376,6 +1469,7 @@ function renderGerenciadorFichas(){
 let vistaTreino=posicaoAtual();
 function render(){
  garantirIdsFichas();
+ revisarDescansosCadastrados();
  prepararSessoes();
  const app=document.getElementById('app');app.replaceChildren();
  if(vistaTreino>=dados.length||vistaTreino<0)vistaTreino=posicaoAtual();
@@ -1439,6 +1533,12 @@ document.getElementById('avancarTreino').onclick=()=>{
  const atual=posicaoAtual(),prox=indiceSeguinteAtivo(atual);
  localStorage.setItem(CICLO_KEY,String(prox));vistaTreino=prox;
  salvar();render();window.scrollTo({top:0,behavior:'smooth'});
+};
+document.getElementById('reaplicarDescansos').onclick=()=>{
+ if(!confirm('Aplicar novamente os descansos recomendados a todos os exercícios? Isso substitui os tempos personalizados, mas preserva cargas, séries, fotos, vídeos e históricos.'))return;
+ const qtd=revisarDescansosCadastrados(true);
+ zerar();render();
+ document.getElementById('descansosStatus').textContent='✓ Tempos revisados em '+qtd+' exercícios. As cargas e mídias foram preservadas.';
 };
 document.getElementById('abrirAjustes').onclick=()=>{
  const el=document.getElementById('painelAjustes');el.hidden=!el.hidden;
