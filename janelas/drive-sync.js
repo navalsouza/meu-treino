@@ -290,6 +290,9 @@
       const orig = excluirFoto;
       excluirFoto = async function(...args) {const result=await orig.apply(this,args);markChanged(true);return result;};
     }
+    // Remapeamentos em lote do gerenciador de fichas usam transações diretas do IndexedDB.
+    // Avise a sincronização para incluir as novas chaves das mídias.
+    window.addEventListener('meu-treino-midias-alteradas',()=>markChanged(true));
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Service worker não instalado:',err));
     }
