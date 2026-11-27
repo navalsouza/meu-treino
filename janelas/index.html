@@ -362,7 +362,11 @@ function revisarDescansosCadastrados(forcar=false){
   e.descansoPlanoVersao=DESCANSO_VERSAO;
   mudou=true;quantidade++;
  }
- if(mudou)salvar();
+ if(mudou){
+  salvar();
+  // Sinaliza a mudança para o módulo Drive ao carregar, sem alterar o backup.
+  try{localStorage.setItem('mt2_dirty_at',String(Date.now()))}catch(err){console.warn('Aviso de sincronização não registrado',err)}
+ }
  return quantidade;
 }
 
