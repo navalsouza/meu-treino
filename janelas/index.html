@@ -1297,6 +1297,12 @@ async function salvarTreinoDia(di,botao,msg){
 // do IndexedDB, para nunca misturar mídias de exercícios diferentes.
 let fichasAlterando=false;
 function fichasAtivas(){return dados.map((f,i)=>f.pausada?-1:i).filter(i=>i>=0)}
+// Exibição somente: TREINO A, TREINO B ... na ordem dos treinos ativos.
+// Identificadores e conteúdo das fichas continuam inalterados.
+function rotuloTreino(i){
+ const indiceAtivo=fichasAtivas().indexOf(i);
+ return indiceAtivo>=0?'TREINO '+String.fromCharCode(65+indiceAtivo):'Ficha '+(i+1);
+}
 function indiceSeguinteAtivo(indice){
  if(!dados.length)return 0;
  for(let passo=1;passo<=dados.length;passo++){
@@ -1451,7 +1457,7 @@ function renderGerenciadorFichas(){
  dados.forEach((f,i)=>{
   const linha=document.createElement('div');linha.className='fichas-gerenciar-linha'+(f.pausada?' is-paused':'');
   const topo=document.createElement('div');topo.className='fichas-gerenciar-label';
-  const nome=document.createElement('strong');nome.textContent='Ficha '+(i+1)+(f.pausada?' · PAUSADA':' · ATIVA');
+  const nome=document.createElement('strong');nome.textContent=rotuloTreino(i)+(f.pausada?' · PAUSADA':' · ATIVO');
   const apelido=document.createElement('small');apelido.textContent=f.nomePersonalizado||f.dia||'Sem nome';
   topo.append(nome,apelido);
   const acoes=document.createElement('div');acoes.className='fichas-gerenciar-botoes';
@@ -1481,8 +1487,9 @@ function render(){
  dados.forEach((dia,di)=>{
    const bot=document.createElement('button');bot.type='button';
    bot.className='treino-tab'+(di===vistaTreino?' selecionado':'')+(di===posicaoAtual()?' atual':'')+(dia.pausada?' pausada':'');
-   bot.textContent=String(di+1);bot.title=(dia.nomePersonalizado||dia.dia)+(dia.pausada?' (pausada)':'');
-   bot.setAttribute('aria-label','Ficha '+(di+1)+(dia.pausada?' pausada':''));
+   bot.textContent=dia.pausada?String(di+1):String.fromCharCode(65+fichasAtivas().indexOf(di));
+   bot.title=rotuloTreino(di)+' — '+(dia.nomePersonalizado||dia.grupos.map(g=>g.nome).join(', '))+(dia.pausada?' (pausada)':'');
+   bot.setAttribute('aria-label',rotuloTreino(di)+(dia.pausada?' pausada':''));
    bot.setAttribute('aria-pressed',String(di===vistaTreino));
    bot.onclick=()=>{vistaTreino=di;render();document.getElementById('app').scrollIntoView({behavior:'smooth',block:'start'})};tabs.appendChild(bot);
  });
@@ -1491,7 +1498,7 @@ function render(){
  const titulo=document.createElement('div');titulo.className='day-heading';
  const feitas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.sets.filter(s=>s.ok).length,0),0);
  const previstas=dia.grupos.reduce((n,g)=>n+g.ex.reduce((sum,e)=>sum+e.series,0),0);
- titulo.innerHTML=`<div><h2>Ficha ${vistaTreino+1}${dia.pausada?' · Pausada':''}</h2><p>${dia.nomePersonalizado?esc(dia.nomePersonalizado)+' · ':''}${esc(dia.grupos.map(g=>g.nome).join(' · ')||'Sem grupos cadastrados')}</p></div><span class="day-counter">${feitas}/${previstas} séries</span>`;
+ titulo.innerHTML=`<div><h2>${esc(rotuloTreino(vistaTreino))}${dia.pausada?' · Pausada':''}</h2><p>${dia.nomePersonalizado?esc(dia.nomePersonalizado)+' · ':''}${esc(dia.grupos.map(g=>g.nome).join(' · ')||'Sem grupos cadastrados')}</p></div><span class="day-counter">${feitas}/${previstas} séries</span>`;
  app.appendChild(titulo);
  const c=document.createElement('section');c.className='card';
  dia.grupos.forEach((g,gi)=>{
@@ -1531,7 +1538,7 @@ function atualizarPainelCiclo(){
  const tituloCustomizado=typeof d?.nomePersonalizado==='string'?d.nomePersonalizado.trim():'';
  const grupos=(d?.grupos||[]).map(g=>g.nome).filter(Boolean);
  const descricao=tituloCustomizado||grupos.slice(0,3).join(' · ');
- document.getElementById('proximoTitulo').textContent='Ficha '+(p+1)+(descricao?' — '+descricao:'');
+ document.getElementById('proximoTitulo').textContent=rotuloTreino(p)+(descricao?' — '+descricao:'');
  document.getElementById('proximoDescricao').textContent=`${ativas.indexOf(p)+1} de ${ativas.length} ativas · ${dados.length} cadastradas`;
  document.getElementById('abrirProximo').hidden=vistaTreino===p;
 }
