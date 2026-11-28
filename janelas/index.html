@@ -1475,10 +1475,62 @@ function renderGerenciadorFichas(){
  });
 }
 
+// Ajuste solicitado no TREINO B — Costas:
+// mantém quatro exercícios na lista, com a Remada articulada na máquina Tronco
+// selecionada na 3ª posição. A remada unilateral permanece em sua própria aba,
+// com os vídeos, imagens e registros originais intactos.
+// Não mudamos os índices das mídias nem a ordem dos demais exercícios.
+function ajustarRemadaArticuladaTronco(){
+ const indicesAtivos=fichasAtivas(),di=indicesAtivos[1];
+ if(!Number.isInteger(di))return;
+ const grupos=dados[di]?.grupos||[];
+ const g=grupos.find(x=>normalizarTexto(x.nome).trim()==='costas');
+ const exs=g?.ex;
+ if(!Array.isArray(exs)||exs.length!==4)return;
+ const n=exs.map(x=>normalizarTexto(x.nome).trim());
+ // Aplique somente ao mesmo grupo e sequência apresentados pelo usuário.
+ if(!/^puxada frontal/.test(n[0])||!/^remada baixa/.test(n[1])||
+    !/^remada unilateral/.test(n[2])||!/^pulldown/.test(n[3]))return;
+ const e=exs[2];
+ if(e.ajusteRemadaTroncoV1)return;
+ const nome='Remada articulada na máquina Tronco';
+ const opcoes=opcoesExercicio(e);
+ let novaOpcao=opcoes.findIndex(o=>normalizarTexto(o.nome).trim()===normalizarTexto(nome).trim());
+ if(novaOpcao<0){
+  e.alternativasPersonalizadas=Array.isArray(e.alternativasPersonalizadas)?e.alternativasPersonalizadas:[];
+  e.alternativasPersonalizadas.push({
+   nome,equip:'Máquina articulada com apoio para o tronco',
+   dica:'Remada guiada com apoio peitoral'
+  });
+  novaOpcao=opcoesExercicio(e).length-1;
+ }
+ const anterior=indiceOpcao(e,opcoes);
+ if(anterior!==novaOpcao){
+  e.registrosOpcoes ||= {};
+  // Salva as séries e a carga da opção que está em uso antes de selecionarmos a máquina.
+  e.registrosOpcoes[anterior]={
+   sets:JSON.parse(JSON.stringify(e.sets||[])),
+   carga:e.carga??''
+  };
+  const guardado=e.registrosOpcoes[novaOpcao];
+  e.sets=guardado?.sets?JSON.parse(JSON.stringify(guardado.sets)):
+   Array.from({length:e.series},()=>({kg:'',reps:'',ok:false}));
+  e.carga=guardado?.carga??'';
+  e.opcaoAtiva=novaOpcao;
+  e.ultimaOpcaoExecutada=nome;
+ }
+ e.abasVisiveis=[...new Set([...(Array.isArray(e.abasVisiveis)?e.abasVisiveis:[]),novaOpcao])];
+ e.ajusteRemadaTroncoV1=true;
+ salvar();
+ // O módulo de sincronização é carregado após o código principal.
+ try{localStorage.setItem('mt2_dirty_at',String(Date.now()))}catch(err){console.warn('Sincronização pendente',err)}
+}
+
 // A aba escolhida não altera o próximo treino do ciclo.
 let vistaTreino=posicaoAtual();
 function render(){
  garantirIdsFichas();
+ ajustarRemadaArticuladaTronco();
  revisarDescansosCadastrados();
  prepararSessoes();
  const app=document.getElementById('app');app.replaceChildren();
