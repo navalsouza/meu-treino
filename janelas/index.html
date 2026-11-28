@@ -1526,7 +1526,12 @@ function posicaoAtual(){
 }
 function atualizarPainelCiclo(){
  const p=posicaoAtual(),d=dados[p],ativas=fichasAtivas();
- document.getElementById('proximoTitulo').textContent=d?.nomePersonalizado||d?.dia||'Ficha 1';
+ // Não interpretar o rótulo antigo "Quarta-feira" como o dia de hoje:
+ // o treino funciona por ciclo e pode acontecer em qualquer dia da semana.
+ const tituloCustomizado=typeof d?.nomePersonalizado==='string'?d.nomePersonalizado.trim():'';
+ const grupos=(d?.grupos||[]).map(g=>g.nome).filter(Boolean);
+ const descricao=tituloCustomizado||grupos.slice(0,3).join(' · ');
+ document.getElementById('proximoTitulo').textContent='Ficha '+(p+1)+(descricao?' — '+descricao:'');
  document.getElementById('proximoDescricao').textContent=`${ativas.indexOf(p)+1} de ${ativas.length} ativas · ${dados.length} cadastradas`;
  document.getElementById('abrirProximo').hidden=vistaTreino===p;
 }
